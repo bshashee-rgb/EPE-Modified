@@ -1,0 +1,11 @@
+node_modules/
+.DS_Store
+quote-app/client/dist/
+*.log
+.superpowers/
+
+# SQLite runtime scratch (never commit)
+*.db-wal
+*.db-shm
+# Worker data dump (real data — generated, never commit)
+quote-app/worker/data.sql

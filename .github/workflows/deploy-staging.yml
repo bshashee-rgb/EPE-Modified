@@ -1,0 +1,47 @@
+name: Deploy to Staging
+
+# Deploys the Worker to the STAGING environment (separate worker + D1) on every
+# push to `develop`. This is where client-facing feature review happens.
+# SAFETY: only `wrangler deploy --env staging` (code + assets). Never touches data,
+# and staging is a fully separate D1 from production.
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch: {}
+
+concurrency:
+  group: cloudflare-deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install client dependencies
+        run: npm ci --prefix quote-app/client
+
+      - name: Build client
+        run: npm run build --prefix quote-app/client
+
+      - name: Install worker dependencies
+        run: npm ci --prefix quote-app/worker
+
+      - name: Deploy Worker to Cloudflare (staging)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: quote-app/worker
+          command: deploy --env staging
+
+      - name: Summary
+        run: |
+          echo "### Deployed to Staging :test_tube:" >> "$GITHUB_STEP_SUMMARY"
+          echo "Ref: \`${GITHUB_REF_NAME}\`" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,48 @@
+name: CI
+
+# Quality gate. Runs on every PR and on pushes to main.
+# Proves the client builds and the worker test suites (auth + parity +
+# writes + admin-writes) pass against a fresh LOCAL D1 — production is
+# never contacted (no CLOUDFLARE_API_TOKEN is used here).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # sqlite3 CLI is used by the worker's export-data.sh / run-all.sh
+      - name: Ensure sqlite3 CLI
+        run: sqlite3 --version || sudo apt-get update && sudo apt-get install -y sqlite3
+
+      - name: Install dependencies (client, server, worker)
+        run: |
+          npm ci --prefix quote-app/client
+          npm ci --prefix quote-app/server
+          npm ci --prefix quote-app/worker
+
+      - name: Auth unit tests (pure, no server)
+        run: node quote-app/worker/test/auth-unit.mjs
+
+      # wrangler dev reads SESSION_SECRET from .dev.vars (gitignored, absent in CI).
+      # Create a throwaway one so JWT signing works for the auth suite. This value
+      # is CI-only and unrelated to the production secret (set via `wrangler secret`).
+      - name: Provision CI dev secret
+        run: echo "SESSION_SECRET=$(openssl rand -hex 32)" > quote-app/worker/.dev.vars
+
+      - name: Full worker suite (auth + parity + writes + admin-writes)
+        working-directory: quote-app/worker
+        run: ./test/run-all.sh

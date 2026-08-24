@@ -1,0 +1,31 @@
+{
+  "name": "epe-quote",
+  "main": "src/index.js",
+  "compatibility_date": "2026-07-01",
+  "assets": {
+    "directory": "../client/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "epe-quote", "database_id": "b34a06ce-1726-4a7d-adc3-6f7b1974a37e" }
+  ],
+  // Top-level config = PRODUCTION (worker `epe-quote`, prod D1). The `staging`
+  // environment is a fully separate worker + D1 so client testing on staging can
+  // never touch production data. `develop` auto-deploys here via deploy-staging.yml.
+  "env": {
+    "staging": {
+      "name": "epe-quote-staging",
+      "assets": {
+        "directory": "../client/dist",
+        "binding": "ASSETS",
+        "not_found_handling": "single-page-application",
+        "run_worker_first": ["/api/*"]
+      },
+      "d1_databases": [
+        { "binding": "DB", "database_name": "epe-quote-staging", "database_id": "3f7bbd89-ca09-4d3f-9332-928a6d86688b" }
+      ]
+    }
+  }
+}
