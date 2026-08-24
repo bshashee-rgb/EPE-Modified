@@ -7,6 +7,19 @@ import { verifyCredentials, createSession, getSession, clearSession, hashPasswor
 const app = new Hono();
 const DB = (c) => c.env.DB;
 
+// D1 occasionally rejects a write with a transient overload/timeout error under concurrent
+// load rather than a data problem — retrying almost always succeeds on the 2nd/3rd attempt.
+// Used for the currency-change write (PATCH /api/quotes/:id), the flow most exposed to this.
+const isTransientD1Error = (e) => /D1 DB is overloaded|Requests queued for too long|Network connection lost/i.test(String(e?.cause?.message || e?.message || ''));
+async function withD1Retry(fn, attempts = 3) {
+  for (let i = 1; i <= attempts; i++) {
+    try { return await fn(); } catch (e) {
+      if (i === attempts || !isTransientD1Error(e)) throw e;
+      await new Promise((r) => setTimeout(r, 150 * i));
+    }
+  }
+}
+
 // ---- auth gate: everything under /api/* needs a session except login + ping.
 const AUTH_EXEMPT = new Set(['/api/auth/login', '/api/ping']);
 app.use('/api/*', async (c, next) => {
@@ -293,7 +306,7 @@ app.patch('/api/quotes/:id', async (c) => {
   for (const k of allowed) if (k in body) { sets.push(`${k}=?`); vals.push(body[k]); }
   if (sets.length) {
     vals.push(actor(c), id);
-    await DB(c).prepare(`UPDATE quotes SET ${sets.join(',')}, updated_at=datetime('now'), updated_by=? WHERE id=?`).bind(...vals).run();
+    await withD1Retry(() => DB(c).prepare(`UPDATE quotes SET ${sets.join(',')}, updated_at=datetime('now'), updated_by=? WHERE id=?`).bind(...vals).run());
     // a status change reads differently from a content edit in the timeline
     const action = (Object.keys(body).length === 1 && 'status' in body) ? 'status' : 'update';
     await d.audit(DB(c), actor(c), action, 'quote', id, body);
@@ -972,6 +985,12 @@ app.onError((err, c) => {
   }
   if (/NOT NULL constraint failed|CHECK constraint failed/i.test(msg)) {
     return c.json({ error: 'The request is missing or has an invalid required value.' }, 400);
+  }
+  // D1 rejects a request when too many are already queued against the database rather than
+  // failing the data itself — retrying is the correct client response, so surface it as a
+  // retryable 503 instead of the opaque, non-retryable 500 below.
+  if (/D1 DB is overloaded|Requests queued for too long|Network connection lost/i.test(msg)) {
+    return c.json({ error: 'The database is temporarily busy. Please try again in a moment.' }, 503);
   }
   console.error('[error]', c.req.method, c.req.path, '-', msg);
   return c.json({ error: 'Internal server error' }, 500);
