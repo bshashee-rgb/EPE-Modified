@@ -1,0 +1,11 @@
+import { hashPassword, verifyPassword } from '../src/auth.js';
+const assert = (c, m) => { if (!c) { console.error('FAIL:', m); process.exit(1); } console.log('ok:', m); };
+const a = await hashPassword('s3cret');
+assert(a.hash.length === 64 && a.salt.length === 32, 'hash/salt hex lengths');
+assert(await verifyPassword('s3cret', a.salt, a.hash), 'correct password verifies');
+assert(!(await verifyPassword('wrong', a.salt, a.hash)), 'wrong password rejected');
+const b = await hashPassword('s3cret', a.salt);
+assert(b.hash === a.hash, 'deterministic given same salt');
+const c2 = await hashPassword('s3cret');
+assert(c2.hash !== a.hash, 'new salt -> new hash');
+console.log('AUTH UNIT TESTS PASSED');

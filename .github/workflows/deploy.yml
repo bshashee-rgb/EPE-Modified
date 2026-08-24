@@ -1,0 +1,54 @@
+name: Deploy to Cloudflare
+
+# Deploys the Worker (API + built client assets) to Cloudflare.
+# Triggers:
+#   - pushing a version tag (v1.2.3)  -> the release deploy
+#   - manual run from the Actions tab (workflow_dispatch)
+#
+# SAFETY: this workflow ONLY runs `wrangler deploy` (code + static assets).
+# It never touches D1 data — no schema import, no data import, no migrations.
+# Production D1 is the system of record and is left completely untouched.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: {}
+
+# One deploy at a time; never cancel a deploy midway.
+concurrency:
+  group: cloudflare-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install client dependencies
+        run: npm ci --prefix quote-app/client
+
+      - name: Build client
+        run: npm run build --prefix quote-app/client
+
+      - name: Install worker dependencies
+        run: npm ci --prefix quote-app/worker
+
+      - name: Deploy Worker to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: quote-app/worker
+          command: deploy
+
+      - name: Summary
+        run: |
+          echo "### Deployed to Cloudflare :rocket:" >> "$GITHUB_STEP_SUMMARY"
+          echo "Ref: \`${GITHUB_REF_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "URL: https://epe-quote.ramki-461.workers.dev" >> "$GITHUB_STEP_SUMMARY"

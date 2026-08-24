@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "epe-quote-server",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "quote-app/server"],
+      "port": 4780
+    },
+    {
+      "name": "epe-quote-client",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "quote-app/client"],
+      "port": 5178
+    }
+  ]
+}
