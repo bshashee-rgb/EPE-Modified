@@ -57,6 +57,32 @@ Purpose: client testing/review on a URL that can never read or write production 
 - **Data flow**: prod → staging refresh is one-directional and documented (§6). The reverse
   (staging → prod) never happens except a deliberate, backed-up migration.
 
+### R2 (Attachments feature) — ⚠️ NOT YET ENABLED anywhere
+The Attachments + Manager Approval feature (FR-A30) is fully built, tested, and merged to `main`,
+but **cannot be deployed to any environment yet** — none of the three Cloudflare accounts (prod,
+staging, or a personal sandbox) has R2 enabled. `wrangler deploy` will fail loudly (not silently)
+on any environment whose `r2_buckets` binding points at a bucket that doesn't exist yet — this is
+intentional, not a bug.
+
+**To go live with this feature, on whichever Cloudflare account is being deployed to:**
+1. Enable R2 in that account's dashboard: **Cloudflare dashboard → R2** (left sidebar) → follow the
+   one-time enablement flow (requires a payment method on file, even to use the free tier — R2 has
+   no enablement without one).
+2. Create the bucket named in that environment's `wrangler.jsonc` block
+   (`epe-quote-attachments` for production, `epe-quote-attachments-staging` for staging,
+   `epe-quote-attachments-sandbox` for a personal sandbox):
+   `npx wrangler r2 bucket create <bucket-name>`.
+3. Apply the schema migrations to that environment's D1 if it predates them (a fresh D1 already has
+   this shape via `schema.sql`): `npx wrangler d1 execute <db-name> --remote --file=./migrations/001-attachments.sql`
+   then `./migrations/002-clarifications.sql`.
+4. `npm run build --prefix ../client && npx wrangler deploy` (add `--env staging` /
+   `--env sandbox` as appropriate).
+
+As of this writing, `main` has not been redeployed to any environment since this feature merged —
+the live Workers (production, staging, sandbox) are still running the pre-Attachments build. Once
+steps 1–4 above are done for an environment and it IS redeployed, the feature ships live there;
+until then, nothing changes for existing users.
+
 ---
 
 ## 3. Branch model
