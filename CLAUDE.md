@@ -74,6 +74,6 @@ D1 — never touches production data). CI (`ci.yml`) runs the full worker suite 
 ## Conventions
 
 - Add a feature → add an `FR-A#` entry to the PRD **and** `quote-app/README.md` (addendum ends at
-  **FR-A29**; next is FR-A30). Keep both in sync with the code.
+  **FR-A31**; next is FR-A32). Keep both in sync with the code.
 - When you add or change a route in one runtime, mirror it in the other (Express ↔ Worker) — the
   frozen client calls both; a missing route is a production 404.

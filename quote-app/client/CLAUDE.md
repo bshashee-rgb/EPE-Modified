@@ -17,7 +17,7 @@ code**, don't introduce a new pattern for one feature.
   (`--accent #0b5cad` hydraulic blue, `--ok`/`--warn`/`--bad` semantics). Reuse these variables;
   don't hardcode new colors.
 - `src/pages/` — Dashboard, Catalog, Configurator, QuoteDetail, Parts, Admin.
-- `src/components/` — AddItemDrawer, CopyCode, CommitInput, etc.
+- `src/components/` — AddItemDrawer, CopyCode, CommitInput, CustomerHistoryPanel, etc.
 
 ## api.js contract
 

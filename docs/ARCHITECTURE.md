@@ -101,7 +101,9 @@ Route groups:
 - **Catalogue/config**: `GET /api/catalog`, `GET /api/families/:id/meta`,
   `POST /api/families/:id/evaluate`, `POST /api/families/:id/parse-code`, `GET /api/parts`,
   `GET /api/popularity`.
-- **Quotes**: `GET/POST /api/quotes`, `GET/PATCH/DELETE /api/quotes/:id`, `/archive`, `/unarchive`,
+- **Quotes**: `GET/POST /api/quotes` (`?customer_id=` filters to one customer's quotes for the
+  Customer History comparison view, FR-A31 — always includes archived in that case),
+  `GET/PATCH/DELETE /api/quotes/:id`, `/archive`, `/unarchive`,
   `/revise` (same number, next revision), `/clone` (new number), `/reorder`, `/audit` (history),
   lines via `POST /api/quotes/:id/lines`, `PATCH/DELETE /api/lines/:id`,
   `PATCH /api/lines/:id/reconfigure`.

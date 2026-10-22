@@ -187,15 +187,22 @@ app.post('/api/customers', async (c) => {
 app.get('/api/quotes', async (c) => {
   // ?archived=1 includes archived (default excludes). `items` aggregates each quote's
   // line codes+descriptions so the client can search "by item" as well as by customer.
-  const includeArchived = c.req.query('archived') === '1';
+  // ?customer_id= (Customer History comparison view) always includes archived quotes too —
+  // historical pricing comparison needs old/archived quotes that the default list hides.
+  const customerId = c.req.query('customer_id');
+  const includeArchived = c.req.query('archived') === '1' || !!customerId;
+  const conds = [];
+  const binds = [];
+  if (!includeArchived) conds.push('q.archived = 0');
+  if (customerId) { conds.push('q.customer_id = ?'); binds.push(+customerId); }
   const rows = (await DB(c).prepare(`SELECT q.*, c.name AS customer_name,
      (SELECT COUNT(*) FROM quote_lines l WHERE l.quote_id=q.id) AS line_count,
      (SELECT SUM(CASE WHEN l.poa=1 THEN 0 ELSE l.unit_price*l.qty*(1-l.discount_pct/100.0) END) FROM quote_lines l WHERE l.quote_id=q.id) AS subtotal,
      (SELECT MAX(l.poa) FROM quote_lines l WHERE l.quote_id=q.id) AS has_poa,
      (SELECT group_concat(l.ordering_code || ' ' || COALESCE(l.description,''), ' | ') FROM quote_lines l WHERE l.quote_id=q.id) AS items
    FROM quotes q LEFT JOIN customers c ON c.id=q.customer_id
-   ${includeArchived ? '' : 'WHERE q.archived = 0'}
-   ORDER BY q.id DESC`).all()).results;
+   ${conds.length ? 'WHERE ' + conds.join(' AND ') : ''}
+   ORDER BY q.id DESC`).bind(...binds).all()).results;
   return c.json(rows);
 });
 

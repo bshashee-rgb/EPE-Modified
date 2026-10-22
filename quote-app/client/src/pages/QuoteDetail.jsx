@@ -3,6 +3,7 @@ import { api, fmtMoney, CURRENCIES } from '../api.js';
 import { toast } from '../toast.js';
 import AddItemDrawer from '../components/AddItemDrawer.jsx';
 import CopyCode from '../components/CopyCode.jsx';
+import CustomerHistoryPanel from '../components/CustomerHistoryPanel.jsx';
 
 export default function QuoteDetail({ quoteId, nav }) {
   const [data, setData] = useState(null);
@@ -16,7 +17,7 @@ export default function QuoteDetail({ quoteId, nav }) {
   const [branching, setBranching] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);   // line being dragged
   const [overIdx, setOverIdx] = useState(null);   // line currently dragged over
-  const [tab, setTab] = useState('quotation');    // quotation | history
+  const [tab, setTab] = useState('quotation');    // quotation | history | customer
   const [history, setHistory] = useState(null);
   const [fx, setFx] = useState(null);             // live rate info shown next to the currency picker
   const [showCustom, setShowCustom] = useState(false);
@@ -145,10 +146,15 @@ export default function QuoteDetail({ quoteId, nav }) {
 
       <div className="tabs no-print">
         <button className={tab === 'quotation' ? 'active' : ''} onClick={() => setTab('quotation')}>Quotation</button>
+        {quote.customer_id && (
+          <button className={tab === 'customer' ? 'active' : ''} onClick={() => setTab('customer')}>Customer History</button>
+        )}
         <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>History</button>
       </div>
 
-      {tab === 'history' ? (
+      {tab === 'customer' && quote.customer_id ? (
+        <CustomerHistoryPanel customerId={quote.customer_id} currentQuoteId={quote.id} currentLines={lines} />
+      ) : tab === 'history' ? (
         <QuoteHistory history={history} />
       ) : (
       <div className="quote-doc">
