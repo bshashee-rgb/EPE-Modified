@@ -39,22 +39,10 @@
       ]
     },
     // Personal sandbox — separate Cloudflare account, never pushed upstream.
-    "sandbox": {
-      "name": "epe-quote-sandbox",
-      "assets": {
-        "directory": "../client/dist",
-        "binding": "ASSETS",
-        "not_found_handling": "single-page-application",
-        "run_worker_first": ["/api/*"]
-      },
-      "d1_databases": [
-        { "binding": "DB", "database_name": "epe-quote-sandbox", "database_id": "5d6bc2b0-d5f7-4dee-a0e2-81bfcaf01a4c" }
-      ],
-      "r2_buckets": [
-        { "binding": "ATTACHMENTS", "bucket_name": "epe-quote-attachments-sandbox" }
-      ]
-    },
-    // Personal sandbox — separate Cloudflare account, never pushed upstream.
+    // NOTE: no r2_buckets binding here on purpose — R2 is not enabled on this account yet.
+    // The Attachments tab is deployed and visible for UI placement/demo purposes, but any
+    // actual upload/download call will fail (no ATTACHMENTS binding) until R2 is enabled and
+    // this block is updated to match staging/production (see docs/DEPLOYMENT.md).
     "sandbox": {
       "name": "epe-quote-sandbox",
       "assets": {

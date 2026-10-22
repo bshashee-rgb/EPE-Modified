@@ -283,6 +283,7 @@ app.get('/api/quotes/:id/attachments', async (c) => {
 });
 
 app.post('/api/quotes/:id/attachments', async (c) => {
+  if (!c.env.ATTACHMENTS) return c.json({ error: 'File storage is not yet configured for this environment (R2 not enabled).' }, 503);
   const quoteId = +c.req.param('id');
   const quote = await DB(c).prepare('SELECT id FROM quotes WHERE id=?').bind(quoteId).first();
   if (!quote) return c.json({ error: 'quote not found' }, 404);
@@ -310,6 +311,7 @@ app.post('/api/quotes/:id/attachments', async (c) => {
 });
 
 app.get('/api/attachments/:id', async (c) => {
+  if (!c.env.ATTACHMENTS) return c.json({ error: 'File storage is not yet configured for this environment (R2 not enabled).' }, 503);
   const id = +c.req.param('id');
   const row = await DB(c).prepare('SELECT * FROM attachments WHERE id=? AND archived=0').bind(id).first();
   if (!row) return c.json({ error: 'attachment not found' }, 404);
