@@ -45,7 +45,7 @@ and the Worker.
 - **Migrations are versioned and additive-only.** Never edit an existing entry in the
   `MIGRATIONS` array in `db.js` — **add a new migration** (guarded, idempotent `up(db)`) that
   only adds columns/tables/indexes.
-- After any schema change, run `node test-migrations.mjs` and confirm **5 passed, 0 failed**.
+- After any schema change, run `node test-migrations.mjs` and confirm **6 passed, 0 failed**.
   It round-trips the real DB and a synthetic legacy-schema DB, asserting every row/column
   survives.
 - Backups live in `backups/` (retention 40): before every migration, daily on startup, and on
@@ -60,6 +60,12 @@ npm run seed --prefix .    # = node seed/run.js
 This **deletes `epe-quote.db` and rebuilds the entire catalogue** from `seed/*.js`. **It wipes
 all quotations.** Only for initial setup or a deliberate clean catalogue reset — never to
 "update" a running system. Catalogue edits belong in the Admin UI, not re-seeding.
+
+## Attachments storage (local dev)
+
+`uploads/` (gitignored) is the local filesystem stand-in for the Worker's R2 bucket — same
+`q<quoteId>/<uuid>-<name>` key scheme, referenced by `attachments.r2_key`. Requires `multer`
+(a regular dependency here, even though it's dev-only — this app never deploys as a server).
 
 ## Regression gates (run before declaring any server change done)
 

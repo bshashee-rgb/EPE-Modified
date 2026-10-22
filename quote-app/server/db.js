@@ -99,6 +99,12 @@ const MIGRATIONS = [
   { name: '007-quotes-fx_rate', up(db) {
     if (!hasCol(db, 'quotes', 'fx_rate')) db.exec("ALTER TABLE quotes ADD COLUMN fx_rate REAL NOT NULL DEFAULT 1");
   } },
+  { name: '008-quotes-approval', up(db) {
+    if (!hasCol(db, 'quotes', 'approval_status')) db.exec("ALTER TABLE quotes ADD COLUMN approval_status TEXT NOT NULL DEFAULT 'pending'");
+    if (!hasCol(db, 'quotes', 'approved_by')) db.exec("ALTER TABLE quotes ADD COLUMN approved_by TEXT");
+    if (!hasCol(db, 'quotes', 'approved_at')) db.exec("ALTER TABLE quotes ADD COLUMN approved_at TEXT");
+    if (!hasCol(db, 'quotes', 'approval_notes')) db.exec("ALTER TABLE quotes ADD COLUMN approval_notes TEXT");
+  } },
 ];
 
 const hasCol = (db, table, col) => db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col);
@@ -333,6 +339,20 @@ export function createSchema(db, opts = {}) {
     entity_id TEXT,
     detail TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS attachments (
+    id INTEGER PRIMARY KEY,
+    quote_id INTEGER NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
+    file_name TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    r2_key TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'other',
+    uploaded_by TEXT NOT NULL,
+    uploaded_at TEXT NOT NULL DEFAULT (datetime('now')),
+    archived INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS idx_attachments_quote_id ON attachments(quote_id);
   `);
 
   // Routine daily restore point (protects against non-migration code changes too).

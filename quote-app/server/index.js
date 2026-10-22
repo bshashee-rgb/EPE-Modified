@@ -1,5 +1,10 @@
 import express from 'express';
 import cors from 'cors';
+import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { fileURLToPath } from 'url';
 import { openDb, createSchema, snapshotDb, listBackups, DB_PATH } from './db.js';
 import { loadFamilyMeta, evaluate, resolveCompanions, priceConfiguration, parseCode } from './engine.js';
 import { getFxRates } from './fx.js';
@@ -9,6 +14,25 @@ createSchema(db, { backup: true }); // versioned migrations + auto-backup (data-
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
+
+// ---- Attachments: local filesystem stand-in for the Worker's R2 bucket (dev only) ----
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const UPLOAD_DIR = process.env.EPE_UPLOAD_DIR || path.join(__dirname, 'uploads');
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+const BLOCKED_EXTENSIONS = new Set(['.exe', '.js', '.mjs', '.cjs', '.bat', '.cmd', '.sh', '.ps1', '.msi', '.com', '.scr', '.vbs', '.vbe', '.wsf', '.jar', '.apk', '.dll']);
+const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024; // 25MB
+const INLINE_PREVIEW_MIME = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+const ATTACHMENT_CATEGORIES = ['technical', 'costing', 'scan', 'other'];
+const APPROVAL_DECISIONS = ['approved', 'rejected'];
+const fileExt = (name) => { const m = /\.[^./\\]+$/.exec(String(name || '')); return m ? m[0].toLowerCase() : ''; };
+const sanitizeFileName = (name) => String(name || 'file').replace(/[/\\]/g, '_').replace(/[\x00-\x1f]/g, '').slice(-180) || 'file';
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => { const dir = path.join(UPLOAD_DIR, 'q' + req.params.id); fs.mkdirSync(dir, { recursive: true }); cb(null, dir); },
+    filename: (req, file, cb) => cb(null, `${crypto.randomUUID()}-${sanitizeFileName(file.originalname)}`),
+  }),
+  limits: { fileSize: MAX_ATTACHMENT_BYTES },
+});
 
 const audit = (actor, action, entity, entityId, detail) =>
   db.prepare('INSERT INTO audit_log(actor,action,entity,entity_id,detail) VALUES (?,?,?,?,?)')
@@ -220,6 +244,72 @@ app.post('/api/quotes', (req, res) => {
 app.get('/api/quotes/:id/audit', (req, res) => {
   const rows = db.prepare("SELECT id, at, actor, action, detail FROM audit_log WHERE entity='quote' AND entity_id=? ORDER BY id DESC").all(String(+req.params.id));
   res.json(rows.map((r) => ({ ...r, detail: r.detail ? JSON.parse(r.detail) : null })));
+});
+
+// ---------- Attachments (mirrors the Worker's R2-backed routes using local disk) ----------
+app.get('/api/quotes/:id/attachments', (req, res) => {
+  res.json(db.prepare('SELECT * FROM attachments WHERE quote_id=? AND archived=0 ORDER BY uploaded_at DESC, id DESC').all(+req.params.id));
+});
+
+app.post('/api/quotes/:id/attachments', upload.single('file'), (req, res) => {
+  const quoteId = +req.params.id;
+  const quote = db.prepare('SELECT id FROM quotes WHERE id=?').get(quoteId);
+  if (!quote) { if (req.file) fs.unlinkSync(req.file.path); return res.status(404).json({ error: 'quote not found' }); }
+  if (!req.file) return res.status(400).json({ error: 'file is required' });
+  const ext = fileExt(req.file.originalname);
+  if (BLOCKED_EXTENSIONS.has(ext)) {
+    fs.unlinkSync(req.file.path);
+    return res.status(400).json({ error: `Files of type '${ext}' are not allowed for security reasons.` });
+  }
+  const category = ATTACHMENT_CATEGORIES.includes(req.body.category) ? req.body.category : 'other';
+  const r2Key = path.relative(UPLOAD_DIR, req.file.path);
+  const mimeType = req.file.mimetype || 'application/octet-stream';
+  const actor = req.headers['x-actor'] || 'demo';
+  const r = db.prepare(`INSERT INTO attachments(quote_id,file_name,mime_type,size_bytes,r2_key,category,uploaded_by)
+      VALUES (?,?,?,?,?,?,?)`)
+    .run(quoteId, req.file.originalname, mimeType, req.file.size, r2Key, category, actor);
+  const newId = r.lastInsertRowid;
+  audit(actor, 'upload-attachment', 'attachment', newId, { file_name: req.file.originalname, category });
+  audit(actor, 'upload-attachment', 'quote', quoteId, { file_name: req.file.originalname, attachment_id: newId });
+  res.json(db.prepare('SELECT * FROM attachments WHERE id=?').get(newId));
+});
+
+app.get('/api/attachments/:id', (req, res) => {
+  const row = db.prepare('SELECT * FROM attachments WHERE id=? AND archived=0').get(+req.params.id);
+  if (!row) return res.status(404).json({ error: 'attachment not found' });
+  const filePath = path.join(UPLOAD_DIR, row.r2_key);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'file not found in storage' });
+  const forceDownload = req.query.download === '1';
+  const inline = !forceDownload && INLINE_PREVIEW_MIME.has(row.mime_type);
+  res.setHeader('Content-Type', row.mime_type);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="${sanitizeFileName(row.file_name)}"`);
+  fs.createReadStream(filePath).pipe(res);
+});
+
+app.delete('/api/attachments/:id', (req, res) => {
+  const row = db.prepare('SELECT * FROM attachments WHERE id=?').get(+req.params.id);
+  if (!row) return res.status(404).json({ error: 'attachment not found' });
+  db.prepare('UPDATE attachments SET archived=1 WHERE id=?').run(+req.params.id);
+  audit(req.headers['x-actor'], 'remove-attachment', 'attachment', req.params.id, { file_name: row.file_name });
+  audit(req.headers['x-actor'], 'remove-attachment', 'quote', row.quote_id, { file_name: row.file_name, attachment_id: +req.params.id });
+  res.json({ ok: true });
+});
+
+// Manager approval — Express has no real session/role system (legacy X-Actor header only,
+// already documented as insecure beyond local dev), so this route is UI-gated only here; the
+// client already hides the Approve/Reject control unless effectiveRole === 'admin'.
+app.patch('/api/quotes/:id/approval', (req, res) => {
+  const quote = db.prepare('SELECT id FROM quotes WHERE id=?').get(+req.params.id);
+  if (!quote) return res.status(404).json({ error: 'not found' });
+  if (!APPROVAL_DECISIONS.includes(req.body.decision)) {
+    return res.status(400).json({ error: `decision must be one of: ${APPROVAL_DECISIONS.join(', ')}` });
+  }
+  const actor = req.headers['x-actor'] || 'demo';
+  db.prepare("UPDATE quotes SET approval_status=?, approved_by=?, approved_at=datetime('now'), approval_notes=? WHERE id=?")
+    .run(req.body.decision, actor, req.body.notes || null, +req.params.id);
+  audit(actor, req.body.decision === 'approved' ? 'approve' : 'reject', 'quote', req.params.id, { notes: req.body.notes || null });
+  res.json(db.prepare('SELECT * FROM quotes WHERE id=?').get(+req.params.id));
 });
 
 app.get('/api/quotes/:id', (req, res) => {
@@ -861,6 +951,9 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
   if (res.headersSent) return next(err);
   const code = err && err.code;
   if (err && err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+  if (code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ error: `File is too large — maximum is ${Math.round(MAX_ATTACHMENT_BYTES / 1024 / 1024)}MB.` });
+  }
   if (code === 'SQLITE_CONSTRAINT_UNIQUE' || code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
     return res.status(409).json({ error: 'That record already exists (duplicate key).' });
   }

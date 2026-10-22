@@ -19,6 +19,18 @@ This IS production: live at https://epe-quote.ramki-461.workers.dev, system of r
   constraint violations to `409`/`400` (same contract as the Express error middleware).
 - D1 helpers (family-meta loading, price-list lookup, audit writes) live in `src/data.js`.
 
+## R2 (attachments)
+
+- Binding `ATTACHMENTS` (see `wrangler.jsonc`) — one bucket per environment, same isolation rule as
+  D1: `epe-quote-attachments-sandbox` is provisioned; production/staging buckets are a deliberate
+  later step (don't assume they exist yet — see `docs/DEPLOYMENT.md`).
+- Metadata lives in D1 (`attachments` table); R2 holds only the bytes, keyed `q<quoteId>/<uuid>-<name>`.
+- `migrations/` is a **new directory**, first file `001-attachments.sql` — unlike `server/db.js`'s
+  `MIGRATIONS` array, D1 has no `_migrations` tracking table, so these files are **not idempotent**
+  and must be applied by hand, exactly once, per environment (same manual-op discipline as the
+  existing `schema.sql`/`data.sql` warnings below). `schema.sql` was updated in parallel so a fresh
+  local/CI D1 already has this shape with no separate migration step.
+
 ## Auth model
 
 - Sessions, not the legacy `X-Actor` header. A `users` table (`auth-schema.sql`) holds
@@ -53,8 +65,10 @@ This IS production: live at https://epe-quote.ramki-461.workers.dev, system of r
 
 One-shot gate: resets local D1 from a fresh snapshot, builds the client, boots Express on port
 **4781** and `wrangler dev` on **8787** against identical data (never touches 4780 — the
-production Express port), runs `test/parity.mjs` + `test/writes.mjs` + `test/admin-writes.mjs` in
-order, tears down both servers regardless of outcome. This is the CI gate (`ci.yml`).
+production Express port), runs `test/parity.mjs` + `test/writes.mjs` + `test/admin-writes.mjs` +
+`test/attachments.mjs` in order, tears down both servers regardless of outcome. This is the CI
+gate (`ci.yml`). `attachments.mjs` relies on local `wrangler dev`'s built-in R2 emulation (Miniflare)
+— no real Cloudflare account/bucket is touched.
 
 ## THE MOST IMPORTANT RULE
 

@@ -115,6 +115,8 @@ CREATE TABLE quotes (
     archived INTEGER NOT NULL DEFAULT 0,  -- soft-hide (recoverable); Delete is separate & permanent
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')), created_by TEXT, updated_by TEXT,
+    approval_status TEXT NOT NULL DEFAULT 'pending',  -- pending | approved | rejected
+    approved_by TEXT, approved_at TEXT, approval_notes TEXT,
     UNIQUE(number, revision)             -- a number may repeat, but not the same revision twice
   );
 CREATE TABLE quote_lines (
@@ -150,3 +152,16 @@ CREATE TABLE part_families (
     family_id INTEGER NOT NULL REFERENCES families(id) ON DELETE CASCADE,
     PRIMARY KEY (part_id, family_id)
   );
+CREATE TABLE attachments (
+    id INTEGER PRIMARY KEY,
+    quote_id INTEGER NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
+    file_name TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    r2_key TEXT NOT NULL,                -- R2 object key (prod/staging/sandbox)
+    category TEXT NOT NULL DEFAULT 'other',  -- technical | costing | scan | other
+    uploaded_by TEXT NOT NULL,
+    uploaded_at TEXT NOT NULL DEFAULT (datetime('now')),
+    archived INTEGER NOT NULL DEFAULT 0   -- soft-remove only, never hard DELETE
+  );
+CREATE INDEX idx_attachments_quote_id ON attachments(quote_id);

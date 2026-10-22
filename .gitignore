@@ -9,3 +9,7 @@ quote-app/client/dist/
 *.db-shm
 # Worker data dump (real data — generated, never commit)
 quote-app/worker/data.sql
+# Local-dev stand-in for the Worker's R2 attachment storage — never commit uploaded files
+quote-app/server/uploads/
+# Automatic pre-migration/daily snapshots (server/db.js data-safety layer) — local-only
+quote-app/server/backups/

@@ -37,11 +37,12 @@ production D1 has diverged ahead of it.
    the source datasheet's vocabulary (PDFs in `Filters/ Accumulators/ Switches/ Valves/`).
 4. **Never silently ₹0.** Unmapped / special options price as **PoA** (Price on Application).
 5. **Traceability**: archive-never-delete, full audit trail, immutable finalized (non-Draft) quotes,
-   revision letters. Don't weaken these. Every mutation calls `audit(...)`.
+   revision letters. Don't weaken these. Every mutation calls `audit(...)`. Attachments are
+   **archived, never hard-deleted**, same as every other entity here.
 6. **Server is the authority.** Every add-line/reconfigure re-evaluates server-side and rejects
    incomplete/invalid configs — the client never persists a code the server didn't validate.
 7. **Data safety**: schema changes are additive-only versioned migrations; never edit an old one; run
-   `node quote-app/server/test-migrations.mjs` (`5 passed, 0 failed`). See [`server/CLAUDE.md`](quote-app/server/CLAUDE.md).
+   `node quote-app/server/test-migrations.mjs` (`6 passed, 0 failed`). See [`server/CLAUDE.md`](quote-app/server/CLAUDE.md).
 8. **NEVER run a `--remote` schema-reset or data-import against production D1** — it wipes live quotes.
    See [`worker/CLAUDE.md`](quote-app/worker/CLAUDE.md) and [DEPLOYMENT](docs/DEPLOYMENT.md).
 9. **Match the surrounding code**: plain React + hooks, hand-written CSS (no TS, no CSS/state
@@ -74,6 +75,6 @@ D1 — never touches production data). CI (`ci.yml`) runs the full worker suite 
 ## Conventions
 
 - Add a feature → add an `FR-A#` entry to the PRD **and** `quote-app/README.md` (addendum ends at
-  **FR-A29**; next is FR-A30). Keep both in sync with the code.
+  **FR-A30**; next is FR-A31). Keep both in sync with the code.
 - When you add or change a route in one runtime, mirror it in the other (Express ↔ Worker) — the
   frozen client calls both; a missing route is a production 404.

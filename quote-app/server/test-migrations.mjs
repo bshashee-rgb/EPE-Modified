@@ -63,6 +63,7 @@ const { openDb: openL, createSchema: createL } = await importDbWith(legacy);
 const db = openL(); createL(db, { backup: true });
 const cols = db.prepare('PRAGMA table_info(quotes)').all().map(c => c.name);
 chk('legacy: quote_date/archived/created_by/updated_by added', ['quote_date', 'archived', 'created_by', 'updated_by'].every(c => cols.includes(c)));
+chk('legacy: approval_status/approved_by/approved_at/approval_notes added', ['approval_status', 'approved_by', 'approved_at', 'approval_notes'].every(c => cols.includes(c)));
 const q1 = db.prepare('SELECT * FROM quotes WHERE id=1').get();
 chk('legacy: original quote data intact', q1.number === 'Q-2025-0001' && q1.status === 'Won' && q1.created_at === '2025-01-02 10:00:00');
 chk('legacy: family & part rows intact', db.prepare('SELECT name FROM families WHERE id=1').get().name === 'LD Filter' && !!db.prepare("SELECT 1 FROM parts WHERE part_number='BYP01'").get());

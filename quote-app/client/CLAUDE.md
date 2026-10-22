@@ -17,7 +17,7 @@ code**, don't introduce a new pattern for one feature.
   (`--accent #0b5cad` hydraulic blue, `--ok`/`--warn`/`--bad` semantics). Reuse these variables;
   don't hardcode new colors.
 - `src/pages/` — Dashboard, Catalog, Configurator, QuoteDetail, Parts, Admin.
-- `src/components/` — AddItemDrawer, CopyCode, CommitInput, etc.
+- `src/components/` — AddItemDrawer, CopyCode, CommitInput, AttachmentsPanel, etc.
 
 ## api.js contract
 
@@ -26,6 +26,9 @@ code**, don't introduce a new pattern for one feature.
 - Auto-toasts on any request error via the global toast bus. Pass `{quiet: true}` only when the
   calling form already renders its own inline error — never both, never neither (double- or
   zero-reporting a failure is a regression).
+- `api.upload(url, formData)` is the one exception to the JSON contract above — no `Content-Type`
+  (the browser sets the multipart boundary) and posts a raw `FormData`, not a JSON body. Same
+  error/401/toast handling as every other method.
 
 ## CommitInput — commit on blur/Enter, never per-keystroke
 

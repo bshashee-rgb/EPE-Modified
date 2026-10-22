@@ -3,8 +3,9 @@ import { api, fmtMoney, CURRENCIES } from '../api.js';
 import { toast } from '../toast.js';
 import AddItemDrawer from '../components/AddItemDrawer.jsx';
 import CopyCode from '../components/CopyCode.jsx';
+import AttachmentsPanel from '../components/AttachmentsPanel.jsx';
 
-export default function QuoteDetail({ quoteId, nav }) {
+export default function QuoteDetail({ quoteId, nav, role }) {
   const [data, setData] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [showNewCust, setShowNewCust] = useState(false);
@@ -16,7 +17,7 @@ export default function QuoteDetail({ quoteId, nav }) {
   const [branching, setBranching] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);   // line being dragged
   const [overIdx, setOverIdx] = useState(null);   // line currently dragged over
-  const [tab, setTab] = useState('quotation');    // quotation | history
+  const [tab, setTab] = useState('quotation');    // quotation | history | attachments
   const [history, setHistory] = useState(null);
   const [fx, setFx] = useState(null);             // live rate info shown next to the currency picker
   const [showCustom, setShowCustom] = useState(false);
@@ -145,10 +146,13 @@ export default function QuoteDetail({ quoteId, nav }) {
 
       <div className="tabs no-print">
         <button className={tab === 'quotation' ? 'active' : ''} onClick={() => setTab('quotation')}>Quotation</button>
+        <button className={tab === 'attachments' ? 'active' : ''} onClick={() => setTab('attachments')}>Attachments</button>
         <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>History</button>
       </div>
 
-      {tab === 'history' ? (
+      {tab === 'attachments' ? (
+        <AttachmentsPanel quoteId={quoteId} quote={quote} role={role} onApprovalChange={load} />
+      ) : tab === 'history' ? (
         <QuoteHistory history={history} />
       ) : (
       <div className="quote-doc">
@@ -511,6 +515,10 @@ const ACTION_META = {
   unarchive: { icon: '♻️', label: 'Unarchived' },
   revise: { icon: '📄', label: 'Created as new revision' },
   clone: { icon: '⧉', label: 'Cloned to new quote' },
+  'upload-attachment': { icon: '📎', label: 'Attachment uploaded' },
+  'remove-attachment': { icon: '🗑️', label: 'Attachment removed' },
+  approve: { icon: '✅', label: 'Quote approved' },
+  reject: { icon: '⛔', label: 'Quote rejected' },
 };
 const FIELD_LABEL = { customer_id: 'customer', discount_pct: 'quote discount', tax_pct: 'GST', quote_date: 'date', validity_days: 'validity', status: 'status', notes: 'notes', terms: 'terms' };
 
@@ -529,6 +537,10 @@ function describeAudit(r) {
     case 'unarchive': return 'Quotation unarchived';
     case 'revise': return `Started as revision ${d.revision || ''} of ${d.number || ''}`;
     case 'clone': return `Cloned from quote #${d.from}`;
+    case 'upload-attachment': return `Uploaded ${d.file_name || 'a file'}`;
+    case 'remove-attachment': return `Removed ${d.file_name || 'a file'}`;
+    case 'approve': return `Approved${d.notes ? ` — ${d.notes}` : ''}`;
+    case 'reject': return `Rejected${d.notes ? ` — ${d.notes}` : ''}`;
     default: return r.action;
   }
 }

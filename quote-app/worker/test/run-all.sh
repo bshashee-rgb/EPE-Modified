@@ -185,6 +185,10 @@ log "--- admin-writes.mjs ---"
 node test/admin-writes.mjs
 R_ADMIN=$?
 
+log "--- attachments.mjs ---"
+node test/attachments.mjs
+R_ATTACH=$?
+
 set -e
 
 # ===========================================================================
@@ -198,9 +202,10 @@ log "auth.mjs:         $(pass_fail "$R_AUTH")"
 log "parity.mjs:       $(pass_fail "$R_PARITY")"
 log "writes.mjs:       $(pass_fail "$R_WRITES")"
 log "admin-writes.mjs: $(pass_fail "$R_ADMIN")"
+log "attachments.mjs:  $(pass_fail "$R_ATTACH")"
 log "==================================================="
 
-if [ "$R_AUTH" -ne 0 ] || [ "$R_PARITY" -ne 0 ] || [ "$R_WRITES" -ne 0 ] || [ "$R_ADMIN" -ne 0 ]; then
+if [ "$R_AUTH" -ne 0 ] || [ "$R_PARITY" -ne 0 ] || [ "$R_WRITES" -ne 0 ] || [ "$R_ADMIN" -ne 0 ] || [ "$R_ATTACH" -ne 0 ]; then
   log "run-all: FAILED"
   exit 1
 fi
