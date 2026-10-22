@@ -111,6 +111,11 @@ async function main() {
   assert(quoteWithCustomer.status === 200, 'GET quote after customer PATCH → 200', quoteWithCustomer);
   assert(quoteWithCustomer.json.quote.customer_name === '__test_customer__', 'GET quote shows customer_name __test_customer__', quoteWithCustomer.json.quote);
 
+  // ---- Customer History filter: GET /api/quotes?customer_id= returns only that customer's quotes ----
+  const byCustomer = await get(`/api/quotes?customer_id=${custId}`);
+  assert(byCustomer.status === 200, 'GET /api/quotes?customer_id= → 200', byCustomer);
+  assert(byCustomer.json.length === 1 && byCustomer.json[0].id === quote.id, 'customer_id filter returns only this customer\'s quote', byCustomer.json);
+
   // ---- invalid status PATCH → 400 ----
   const badStatus = await patch(`/api/quotes/${quote.id}`, { status: 'Bogus' });
   assert(badStatus.status === 400, 'PATCH invalid status → 400', badStatus);

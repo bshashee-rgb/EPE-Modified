@@ -182,6 +182,13 @@ Canonical docs (single source of truth — this changelog does not repeat them):
   states added. Line reordering is now **keyboard-accessible** (focus the ⠿ handle, ↑/↓ to move) with a
   visible focus ring and the drop-highlight clears on drag-leave; the add-item drawer's search resets
   when switching the Products / Parts sub-tabs.
+- **Customer quote history / comparison (FR-A31):** a new **Customer History** tab on the quote page
+  (shown once a customer is selected) lists that customer's other quotations — number/rev, date,
+  status, total — including archived ones, most recent first. Each row expands (accordion,
+  lazy-loaded) to show its line items with date/unit-price/discount%; any line whose ordering code
+  matches one on the quote being viewed is flagged with a price/discount delta note. New
+  `CustomerHistoryPanel.jsx`; backend is a single additive `?customer_id=` filter on
+  `GET /api/quotes` (both runtimes) — no schema change.
 - **Choose target quote from Parts & Spares (FR-A27):** the per-part button is now **Add to Quote**
   (was "Add to draft quote", which silently used the first draft). It opens a **quote-picker modal**
   (`.modal-overlay`) listing open **Draft** quotes — number/rev, customer, line count, date — plus a
