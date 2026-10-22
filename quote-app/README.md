@@ -182,6 +182,15 @@ Canonical docs (single source of truth — this changelog does not repeat them):
   states added. Line reordering is now **keyboard-accessible** (focus the ⠿ handle, ↑/↓ to move) with a
   visible focus ring and the drop-highlight clears on drag-leave; the add-item drawer's search resets
   when switching the Products / Parts sub-tabs.
+- **Post-offer clarifications & TAT tracking (FR-A32):** a new **Clarifications** tab on the quote
+  page (available once the quote is no longer Draft) lets any user log a customer's technical or
+  commercial question and any user respond; each entry shows who raised/answered it, when, and the
+  computed turnaround time (TAT = responded_at − raised_at, never stored). Two new Dashboard tiles
+  (open clarification count, average response time) give a lightweight TAT view. New
+  `ClarificationsPanel.jsx`; new `clarifications` table (additive migration,
+  `quote-app/worker/migrations/001-clarifications.sql`); new routes mirrored in both runtimes:
+  `GET/POST /api/quotes/:id/clarifications`, `PATCH /api/clarifications/:id/respond`,
+  `DELETE /api/clarifications/:id` (soft-remove only).
 - **Choose target quote from Parts & Spares (FR-A27):** the per-part button is now **Add to Quote**
   (was "Add to draft quote", which silently used the first draft). It opens a **quote-picker modal**
   (`.modal-overlay`) listing open **Draft** quotes — number/rev, customer, line count, date — plus a

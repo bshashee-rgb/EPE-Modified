@@ -150,3 +150,18 @@ CREATE TABLE part_families (
     family_id INTEGER NOT NULL REFERENCES families(id) ON DELETE CASCADE,
     PRIMARY KEY (part_id, family_id)
   );
+CREATE TABLE clarifications (
+    id INTEGER PRIMARY KEY,
+    quote_id INTEGER NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
+    category TEXT NOT NULL DEFAULT 'Clarification',  -- fixed for now; room for more categories later
+    query_type TEXT NOT NULL,             -- technical | commercial
+    question TEXT NOT NULL,
+    raised_at TEXT NOT NULL DEFAULT (datetime('now')),
+    raised_by TEXT NOT NULL,              -- server-derived actor, never trusted from client
+    status TEXT NOT NULL DEFAULT 'open',  -- open | answered
+    response TEXT,
+    responded_at TEXT,
+    responded_by TEXT,
+    archived INTEGER NOT NULL DEFAULT 0   -- soft-remove only, never hard DELETE
+  );
+CREATE INDEX idx_clarifications_quote_id ON clarifications(quote_id);

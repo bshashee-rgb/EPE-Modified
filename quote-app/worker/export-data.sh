@@ -4,7 +4,7 @@
 set -euo pipefail
 DB="${1:-../server/epe-quote.db}"
 OUT="${2:-data.sql}"
-TABLES="categories families segments options rules companion_links parts part_families price_lists base_prices option_prices part_prices customers quotes quote_lines audit_log"
+TABLES="categories families segments options rules companion_links parts part_families price_lists base_prices option_prices part_prices customers quotes quote_lines audit_log clarifications"
 : > "$OUT"
 for t in $TABLES; do
   # Explicit column list, not just positional VALUES(...): the source (Express

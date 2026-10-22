@@ -19,6 +19,12 @@ This IS production: live at https://epe-quote.ramki-461.workers.dev, system of r
   constraint violations to `409`/`400` (same contract as the Express error middleware).
 - D1 helpers (family-meta loading, price-list lookup, audit writes) live in `src/data.js`.
 
+## Migrations directory
+
+`migrations/` holds additive-only SQL files for patching an **already-live** D1 database (a fresh
+database already has the current shape via `schema.sql`). D1 has no `_migrations` tracking table —
+these files are **not idempotent** and must be applied by hand, exactly once, per environment.
+
 ## Auth model
 
 - Sessions, not the legacy `X-Actor` header. A `users` table (`auth-schema.sql`) holds
@@ -53,8 +59,9 @@ This IS production: live at https://epe-quote.ramki-461.workers.dev, system of r
 
 One-shot gate: resets local D1 from a fresh snapshot, builds the client, boots Express on port
 **4781** and `wrangler dev` on **8787** against identical data (never touches 4780 — the
-production Express port), runs `test/parity.mjs` + `test/writes.mjs` + `test/admin-writes.mjs` in
-order, tears down both servers regardless of outcome. This is the CI gate (`ci.yml`).
+production Express port), runs `test/parity.mjs` + `test/writes.mjs` + `test/admin-writes.mjs` +
+`test/clarifications.mjs` in order, tears down both servers regardless of outcome. This is the CI
+gate (`ci.yml`).
 
 ## THE MOST IMPORTANT RULE
 

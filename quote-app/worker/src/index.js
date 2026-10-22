@@ -67,6 +67,9 @@ const CONTENT_FIELDS = ['customer_id', 'quote_date', 'validity_days', 'terms', '
 const clampPct = (v) => Math.max(0, Math.min(100, Number.isFinite(+v) ? +v : 0));
 const clampQty = (v) => { const n = +v; return Number.isFinite(n) && n > 0 ? n : 1; };
 
+// ---- Post-offer clarifications ----
+const QUERY_TYPES = ['technical', 'commercial'];
+
 // ---------- Catalogue ----------
 app.get('/api/catalog', async (c) => {
   const categories = (await DB(c).prepare('SELECT * FROM categories ORDER BY sort').all()).results;
@@ -260,6 +263,59 @@ app.get('/api/quotes/:id', async (c) => {
     l.companions = l.companions_json ? JSON.parse(l.companions_json) : null;
   }
   return c.json({ quote, lines });
+});
+
+// ---------- Clarifications (post-offer customer queries + TAT) ----------
+app.get('/api/quotes/:id/clarifications', async (c) => {
+  const quoteId = +c.req.param('id');
+  const rows = (await DB(c).prepare('SELECT * FROM clarifications WHERE quote_id=? AND archived=0 ORDER BY raised_at DESC, id DESC').bind(quoteId).all()).results;
+  return c.json(rows);
+});
+
+app.post('/api/quotes/:id/clarifications', async (c) => {
+  const quoteId = +c.req.param('id');
+  const quote = await DB(c).prepare('SELECT id, status FROM quotes WHERE id=?').bind(quoteId).first();
+  if (!quote) return c.json({ error: 'quote not found' }, 404);
+  // Post-offer only: a clarification is a customer question about an offer that's gone out.
+  if (quote.status === 'Draft') {
+    return c.json({ error: 'Clarifications can only be logged once the quote has been sent as an offer (it is still Draft).' }, 409);
+  }
+  const body = await c.req.json().catch(() => ({}));
+  if (!QUERY_TYPES.includes(body.query_type)) {
+    return c.json({ error: `query_type must be one of: ${QUERY_TYPES.join(', ')}` }, 400);
+  }
+  const question = String(body.question || '').trim();
+  if (!question) return c.json({ error: 'question is required' }, 400);
+  const r = await DB(c).prepare(`INSERT INTO clarifications(quote_id,query_type,question,raised_by) VALUES (?,?,?,?)`)
+    .bind(quoteId, body.query_type, question, actor(c)).run();
+  const newId = r.meta.last_row_id;
+  await d.audit(DB(c), actor(c), 'raise-clarification', 'clarification', newId, { question });
+  await d.audit(DB(c), actor(c), 'raise-clarification', 'quote', quoteId, { question, clarification_id: newId });
+  return c.json(await DB(c).prepare('SELECT * FROM clarifications WHERE id=?').bind(newId).first());
+});
+
+app.patch('/api/clarifications/:id/respond', async (c) => {
+  const id = +c.req.param('id');
+  const row = await DB(c).prepare('SELECT * FROM clarifications WHERE id=?').bind(id).first();
+  if (!row) return c.json({ error: 'clarification not found' }, 404);
+  const body = await c.req.json().catch(() => ({}));
+  const response = String(body.response || '').trim();
+  if (!response) return c.json({ error: 'response is required' }, 400);
+  await DB(c).prepare(`UPDATE clarifications SET response=?, responded_at=datetime('now'), responded_by=?, status='answered' WHERE id=?`)
+    .bind(response, actor(c), id).run();
+  await d.audit(DB(c), actor(c), 'respond-clarification', 'clarification', id, { response });
+  await d.audit(DB(c), actor(c), 'respond-clarification', 'quote', row.quote_id, { response, clarification_id: id });
+  return c.json(await DB(c).prepare('SELECT * FROM clarifications WHERE id=?').bind(id).first());
+});
+
+app.delete('/api/clarifications/:id', async (c) => {
+  const id = +c.req.param('id');
+  const row = await DB(c).prepare('SELECT * FROM clarifications WHERE id=?').bind(id).first();
+  if (!row) return c.json({ error: 'clarification not found' }, 404);
+  await DB(c).prepare('UPDATE clarifications SET archived=1 WHERE id=?').bind(id).run();
+  await d.audit(DB(c), actor(c), 'remove-clarification', 'clarification', id, { question: row.question });
+  await d.audit(DB(c), actor(c), 'remove-clarification', 'quote', row.quote_id, { question: row.question, clarification_id: id });
+  return c.json({ ok: true });
 });
 
 app.get('/api/fx-rates', async (c) => {
@@ -953,11 +1009,17 @@ app.get('/api/dashboard', async (c) => {
   const topFamilies = (await DBc.prepare(`SELECT f.name, COUNT(*) AS n FROM quote_lines l JOIN families f ON f.id=l.family_id GROUP BY f.id ORDER BY n DESC LIMIT 8`).all()).results;
   const poaLines = (await DBc.prepare('SELECT COUNT(*) AS n FROM quote_lines WHERE poa=1').first()).n;
   const totals = await DBc.prepare(`SELECT COUNT(*) AS quotes, (SELECT COUNT(*) FROM quote_lines) AS lines FROM quotes`).first();
-  return c.json({ byStatus, topFamilies, poaLines, totals });
+  const openClarifications = (await DBc.prepare("SELECT COUNT(*) AS n FROM clarifications WHERE status='open' AND archived=0").first()).n;
+  // Average TAT in hours across answered, non-archived clarifications — plain elapsed time
+  // (not business-day-aware). NULL (no answered clarifications yet) surfaces as null, not 0.
+  const avgResponseHours = (await DBc.prepare(
+    "SELECT AVG((julianday(responded_at) - julianday(raised_at)) * 24) AS h FROM clarifications WHERE status='answered' AND archived=0"
+  ).first()).h;
+  return c.json({ byStatus, topFamilies, poaLines, totals, openClarifications, avgResponseHours });
 });
 
 // ---------- Admin: backups / export ----------
-const EXPORT_TABLES = ['categories','families','segments','options','rules','companion_links','parts','part_families','price_lists','base_prices','option_prices','part_prices','customers','quotes','quote_lines','audit_log'];
+const EXPORT_TABLES = ['categories','families','segments','options','rules','companion_links','parts','part_families','price_lists','base_prices','option_prices','part_prices','customers','quotes','quote_lines','audit_log','clarifications'];
 
 // D1 Time Travel replaces file snapshots (NFR-4): restore via
 //   wrangler d1 time-travel restore epe-quote --timestamp=<ISO>

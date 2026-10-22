@@ -333,6 +333,22 @@ export function createSchema(db, opts = {}) {
     entity_id TEXT,
     detail TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS clarifications (
+    id INTEGER PRIMARY KEY,
+    quote_id INTEGER NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
+    category TEXT NOT NULL DEFAULT 'Clarification',
+    query_type TEXT NOT NULL,
+    question TEXT NOT NULL,
+    raised_at TEXT NOT NULL DEFAULT (datetime('now')),
+    raised_by TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open',
+    response TEXT,
+    responded_at TEXT,
+    responded_by TEXT,
+    archived INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS idx_clarifications_quote_id ON clarifications(quote_id);
   `);
 
   // Routine daily restore point (protects against non-migration code changes too).
