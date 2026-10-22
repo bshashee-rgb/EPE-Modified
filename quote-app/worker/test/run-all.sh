@@ -185,6 +185,10 @@ log "--- admin-writes.mjs ---"
 node test/admin-writes.mjs
 R_ADMIN=$?
 
+log "--- clarifications.mjs ---"
+node test/clarifications.mjs
+R_CLARIF=$?
+
 set -e
 
 # ===========================================================================
@@ -194,13 +198,14 @@ pass_fail() { [ "$1" -eq 0 ] && echo PASS || echo FAIL; }
 
 echo
 log "==================== SUMMARY ===================="
-log "auth.mjs:         $(pass_fail "$R_AUTH")"
-log "parity.mjs:       $(pass_fail "$R_PARITY")"
-log "writes.mjs:       $(pass_fail "$R_WRITES")"
-log "admin-writes.mjs: $(pass_fail "$R_ADMIN")"
+log "auth.mjs:          $(pass_fail "$R_AUTH")"
+log "parity.mjs:        $(pass_fail "$R_PARITY")"
+log "writes.mjs:        $(pass_fail "$R_WRITES")"
+log "admin-writes.mjs:  $(pass_fail "$R_ADMIN")"
+log "clarifications.mjs: $(pass_fail "$R_CLARIF")"
 log "==================================================="
 
-if [ "$R_AUTH" -ne 0 ] || [ "$R_PARITY" -ne 0 ] || [ "$R_WRITES" -ne 0 ] || [ "$R_ADMIN" -ne 0 ]; then
+if [ "$R_AUTH" -ne 0 ] || [ "$R_PARITY" -ne 0 ] || [ "$R_WRITES" -ne 0 ] || [ "$R_ADMIN" -ne 0 ] || [ "$R_CLARIF" -ne 0 ]; then
   log "run-all: FAILED"
   exit 1
 fi

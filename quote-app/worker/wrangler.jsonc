@@ -26,6 +26,19 @@
       "d1_databases": [
         { "binding": "DB", "database_name": "epe-quote-staging", "database_id": "3f7bbd89-ca09-4d3f-9332-928a6d86688b" }
       ]
+    },
+    // Personal sandbox — separate Cloudflare account, never pushed upstream.
+    "sandbox": {
+      "name": "epe-quote-sandbox",
+      "assets": {
+        "directory": "../client/dist",
+        "binding": "ASSETS",
+        "not_found_handling": "single-page-application",
+        "run_worker_first": ["/api/*"]
+      },
+      "d1_databases": [
+        { "binding": "DB", "database_name": "epe-quote-sandbox", "database_id": "5d6bc2b0-d5f7-4dee-a0e2-81bfcaf01a4c" }
+      ]
     }
   }
 }

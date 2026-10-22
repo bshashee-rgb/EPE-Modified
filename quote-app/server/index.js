@@ -14,6 +14,8 @@ const audit = (actor, action, entity, entityId, detail) =>
   db.prepare('INSERT INTO audit_log(actor,action,entity,entity_id,detail) VALUES (?,?,?,?,?)')
     .run(actor || 'demo', action, entity, String(entityId ?? ''), detail ? JSON.stringify(detail) : null);
 
+const QUERY_TYPES = ['technical', 'commercial'];
+
 // Stamp a family's last-metadata-change time (catalogue freshness indicator)
 const touchFamily = (familyId) => {
   if (familyId) db.prepare("UPDATE families SET updated_at = datetime('now') WHERE id=?").run(familyId);
@@ -240,6 +242,55 @@ app.get('/api/quotes/:id', (req, res) => {
     l.companions = l.companions_json ? JSON.parse(l.companions_json) : null;
   }
   res.json({ quote, lines });
+});
+
+// ---------- Clarifications (post-offer customer queries + TAT) ----------
+app.get('/api/quotes/:id/clarifications', (req, res) => {
+  res.json(db.prepare('SELECT * FROM clarifications WHERE quote_id=? AND archived=0 ORDER BY raised_at DESC, id DESC').all(+req.params.id));
+});
+
+app.post('/api/quotes/:id/clarifications', (req, res) => {
+  const quoteId = +req.params.id;
+  const quote = db.prepare('SELECT id, status FROM quotes WHERE id=?').get(quoteId);
+  if (!quote) return res.status(404).json({ error: 'quote not found' });
+  if (quote.status === 'Draft') {
+    return res.status(409).json({ error: 'Clarifications can only be logged once the quote has been sent as an offer (it is still Draft).' });
+  }
+  if (!QUERY_TYPES.includes(req.body.query_type)) {
+    return res.status(400).json({ error: `query_type must be one of: ${QUERY_TYPES.join(', ')}` });
+  }
+  const question = String(req.body.question || '').trim();
+  if (!question) return res.status(400).json({ error: 'question is required' });
+  const actor = req.headers['x-actor'] || 'demo';
+  const r = db.prepare('INSERT INTO clarifications(quote_id,query_type,question,raised_by) VALUES (?,?,?,?)')
+    .run(quoteId, req.body.query_type, question, actor);
+  const newId = r.lastInsertRowid;
+  audit(actor, 'raise-clarification', 'clarification', newId, { question });
+  audit(actor, 'raise-clarification', 'quote', quoteId, { question, clarification_id: newId });
+  res.json(db.prepare('SELECT * FROM clarifications WHERE id=?').get(newId));
+});
+
+app.patch('/api/clarifications/:id/respond', (req, res) => {
+  const row = db.prepare('SELECT * FROM clarifications WHERE id=?').get(+req.params.id);
+  if (!row) return res.status(404).json({ error: 'clarification not found' });
+  const response = String(req.body.response || '').trim();
+  if (!response) return res.status(400).json({ error: 'response is required' });
+  const actor = req.headers['x-actor'] || 'demo';
+  db.prepare("UPDATE clarifications SET response=?, responded_at=datetime('now'), responded_by=?, status='answered' WHERE id=?")
+    .run(response, actor, +req.params.id);
+  audit(actor, 'respond-clarification', 'clarification', req.params.id, { response });
+  audit(actor, 'respond-clarification', 'quote', row.quote_id, { response, clarification_id: +req.params.id });
+  res.json(db.prepare('SELECT * FROM clarifications WHERE id=?').get(+req.params.id));
+});
+
+app.delete('/api/clarifications/:id', (req, res) => {
+  const row = db.prepare('SELECT * FROM clarifications WHERE id=?').get(+req.params.id);
+  if (!row) return res.status(404).json({ error: 'clarification not found' });
+  db.prepare('UPDATE clarifications SET archived=1 WHERE id=?').run(+req.params.id);
+  const actor = req.headers['x-actor'] || 'demo';
+  audit(actor, 'remove-clarification', 'clarification', req.params.id, { question: row.question });
+  audit(actor, 'remove-clarification', 'quote', row.quote_id, { question: row.question, clarification_id: +req.params.id });
+  res.json({ ok: true });
 });
 
 app.get('/api/fx-rates', async (req, res) => {
@@ -858,7 +909,11 @@ app.get('/api/dashboard', (req, res) => {
   const topFamilies = db.prepare(`SELECT f.name, COUNT(*) AS n FROM quote_lines l JOIN families f ON f.id=l.family_id GROUP BY f.id ORDER BY n DESC LIMIT 8`).all();
   const poaLines = db.prepare('SELECT COUNT(*) AS n FROM quote_lines WHERE poa=1').get().n;
   const totals = db.prepare(`SELECT COUNT(*) AS quotes, (SELECT COUNT(*) FROM quote_lines) AS lines FROM quotes`).get();
-  res.json({ byStatus, topFamilies, poaLines, totals });
+  const openClarifications = db.prepare("SELECT COUNT(*) AS n FROM clarifications WHERE status='open' AND archived=0").get().n;
+  const avgResponseHours = db.prepare(
+    "SELECT AVG((julianday(responded_at) - julianday(raised_at)) * 24) AS h FROM clarifications WHERE status='answered' AND archived=0"
+  ).get().h;
+  res.json({ byStatus, topFamilies, poaLines, totals, openClarifications, avgResponseHours });
 });
 
 // ---------- Global error handler (BUG-3): map DB/constraint errors to clean 4xx ----------

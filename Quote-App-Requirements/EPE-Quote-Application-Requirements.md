@@ -284,6 +284,16 @@ Feedback from the first working version produced these binding changes:
   line on the quote currently being viewed is flagged ("also on this quote") with a note on whether
   it's now priced higher, lower, or the same. Backed by a single additive `?customer_id=` filter on
   the existing `GET /api/quotes` route — no schema change.
+- **FR-A32 Post-offer clarifications & TAT tracking.** Once a quote has been sent as an offer
+  (not while it's still Draft), any user can log a customer's technical or commercial question
+  against it under a **Clarification** category, and any user can respond. Each entry records who
+  raised it and when, and — once answered — who responded, when, and the **turnaround time (TAT)**,
+  computed as the elapsed time between raised and responded (never stored, always derived from the
+  two timestamps). A Clarifications tab on the quote page lists these with status (open/answered);
+  the Dashboard shows two aggregate tiles — open clarification count and average response time —
+  as a lightweight starting point for TAT analysis (a fuller filterable report is a later phase if
+  needed). Removing a clarification soft-removes it (never hard-deleted). New `clarifications`
+  table (additive migration) — no changes to the `quotes` table.
 - **FR-A6 Catalogue-wide verification.** Each metadata release must pass an automated sweep proving, for every published family: the default configuration is violation-free; every option displayed as enabled is selectable without error (alone and pairwise with every parent option); and a full sequential configuration completes, validates, renders its ordering code and prices. (The v1.1 sweep covers 36 families / ~37,000 checks.)
 
 ## 9. Acceptance Criteria (summary)

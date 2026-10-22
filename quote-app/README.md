@@ -189,6 +189,15 @@ Canonical docs (single source of truth — this changelog does not repeat them):
   matches one on the quote being viewed is flagged with a price/discount delta note. New
   `CustomerHistoryPanel.jsx`; backend is a single additive `?customer_id=` filter on
   `GET /api/quotes` (both runtimes) — no schema change.
+- **Post-offer clarifications & TAT tracking (FR-A32):** a new **Clarifications** tab on the quote
+  page (available once the quote is no longer Draft) lets any user log a customer's technical or
+  commercial question and any user respond; each entry shows who raised/answered it, when, and the
+  computed turnaround time (TAT = responded_at − raised_at, never stored). Two new Dashboard tiles
+  (open clarification count, average response time) give a lightweight TAT view. New
+  `ClarificationsPanel.jsx`; new `clarifications` table (additive migration,
+  `quote-app/worker/migrations/001-clarifications.sql`); new routes mirrored in both runtimes:
+  `GET/POST /api/quotes/:id/clarifications`, `PATCH /api/clarifications/:id/respond`,
+  `DELETE /api/clarifications/:id` (soft-remove only).
 - **Choose target quote from Parts & Spares (FR-A27):** the per-part button is now **Add to Quote**
   (was "Add to draft quote", which silently used the first draft). It opens a **quote-picker modal**
   (`.modal-overlay`) listing open **Draft** quotes — number/rev, customer, line count, date — plus a

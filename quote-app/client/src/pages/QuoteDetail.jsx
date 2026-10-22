@@ -4,6 +4,7 @@ import { toast } from '../toast.js';
 import AddItemDrawer from '../components/AddItemDrawer.jsx';
 import CopyCode from '../components/CopyCode.jsx';
 import CustomerHistoryPanel from '../components/CustomerHistoryPanel.jsx';
+import ClarificationsPanel from '../components/ClarificationsPanel.jsx';
 
 export default function QuoteDetail({ quoteId, nav }) {
   const [data, setData] = useState(null);
@@ -17,7 +18,7 @@ export default function QuoteDetail({ quoteId, nav }) {
   const [branching, setBranching] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);   // line being dragged
   const [overIdx, setOverIdx] = useState(null);   // line currently dragged over
-  const [tab, setTab] = useState('quotation');    // quotation | history | customer
+  const [tab, setTab] = useState('quotation');    // quotation | history | customer | clarifications
   const [history, setHistory] = useState(null);
   const [fx, setFx] = useState(null);             // live rate info shown next to the currency picker
   const [showCustom, setShowCustom] = useState(false);
@@ -149,11 +150,14 @@ export default function QuoteDetail({ quoteId, nav }) {
         {quote.customer_id && (
           <button className={tab === 'customer' ? 'active' : ''} onClick={() => setTab('customer')}>Customer History</button>
         )}
+        <button className={tab === 'clarifications' ? 'active' : ''} onClick={() => setTab('clarifications')}>Clarifications</button>
         <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>History</button>
       </div>
 
       {tab === 'customer' && quote.customer_id ? (
         <CustomerHistoryPanel customerId={quote.customer_id} currentQuoteId={quote.id} currentLines={lines} />
+      ) : tab === 'clarifications' ? (
+        <ClarificationsPanel quoteId={quoteId} finalized={finalized} />
       ) : tab === 'history' ? (
         <QuoteHistory history={history} />
       ) : (
@@ -517,6 +521,9 @@ const ACTION_META = {
   unarchive: { icon: '♻️', label: 'Unarchived' },
   revise: { icon: '📄', label: 'Created as new revision' },
   clone: { icon: '⧉', label: 'Cloned to new quote' },
+  'raise-clarification': { icon: '❓', label: 'Clarification raised' },
+  'respond-clarification': { icon: '✅', label: 'Clarification answered' },
+  'remove-clarification': { icon: '🗑️', label: 'Clarification removed' },
 };
 const FIELD_LABEL = { customer_id: 'customer', discount_pct: 'quote discount', tax_pct: 'GST', quote_date: 'date', validity_days: 'validity', status: 'status', notes: 'notes', terms: 'terms' };
 
@@ -535,6 +542,9 @@ function describeAudit(r) {
     case 'unarchive': return 'Quotation unarchived';
     case 'revise': return `Started as revision ${d.revision || ''} of ${d.number || ''}`;
     case 'clone': return `Cloned from quote #${d.from}`;
+    case 'raise-clarification': return `Clarification raised: ${d.question || ''}`;
+    case 'respond-clarification': return `Clarification answered: ${d.response || ''}`;
+    case 'remove-clarification': return `Clarification removed`;
     default: return r.action;
   }
 }

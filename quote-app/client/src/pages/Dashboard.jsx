@@ -63,6 +63,8 @@ export default function Dashboard({ nav }) {
         <div className="stat"><div className="n">{s.Sent || 0}</div><div className="l">Sent</div></div>
         <div className="stat"><div className="n">{s.Won || 0}</div><div className="l">Won</div></div>
         <div className="stat"><div className="n">{d.poaLines}</div><div className="l">PoA lines pending pricing</div></div>
+        <div className="stat"><div className="n">{d.openClarifications ?? 0}</div><div className="l">Open clarifications</div></div>
+        <div className="stat"><div className="n">{d.avgResponseHours != null ? (d.avgResponseHours < 24 ? `${d.avgResponseHours.toFixed(1)}h` : `${(d.avgResponseHours / 24).toFixed(1)}d`) : '—'}</div><div className="l">Avg. clarification response</div></div>
       </div>
 
       {d.topFamilies.length > 0 && (

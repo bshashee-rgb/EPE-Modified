@@ -107,6 +107,10 @@ Route groups:
   `/revise` (same number, next revision), `/clone` (new number), `/reorder`, `/audit` (history),
   lines via `POST /api/quotes/:id/lines`, `PATCH/DELETE /api/lines/:id`,
   `PATCH /api/lines/:id/reconfigure`.
+- **Clarifications (FR-A32)**: `GET/POST /api/quotes/:id/clarifications` (POST requires a non-Draft
+  quote — post-offer only), `PATCH /api/clarifications/:id/respond`,
+  `DELETE /api/clarifications/:id` (soft-remove). `GET /api/dashboard` additionally returns
+  `openClarifications`/`avgResponseHours`.
 - **Admin**: `/api/admin/categories`, `/api/admin/families`, `/api/admin/segments`,
   `/api/admin/options`, `/api/admin/rules`, base/option prices, `/api/admin/parts`,
   `/api/admin/summary`, `/api/admin/audit`, `/api/admin/backups`, `/api/admin/export`.
