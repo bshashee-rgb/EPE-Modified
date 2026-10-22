@@ -32,11 +32,32 @@ async function req(method, url, body, opts = {}) {
   return res.json();
 }
 
+// Multipart upload — deliberately skips the JSON Content-Type/stringify path above so the
+// browser can set its own multipart boundary; mirrors req()'s error/401/toast handling.
+async function upload(url, formData, opts = {}) {
+  let res;
+  try {
+    res = await fetch(url, { method: 'POST', headers: { 'X-Actor': actor }, body: formData });
+  } catch (networkErr) {
+    if (!opts.quiet) toast('Cannot reach the server — check your connection and try again.');
+    throw Object.assign(new Error('Network error'), { detail: { error: 'Network error' } });
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    const message = err.error || 'Upload failed';
+    if (res.status === 401 && onUnauthorized) onUnauthorized();
+    if (!opts.quiet) toast(message);
+    throw Object.assign(new Error(message), { detail: err, status: res.status });
+  }
+  return res.json();
+}
+
 export const api = {
   get: (url, opts) => req('GET', url, undefined, opts),
   post: (url, body, opts) => req('POST', url, body, opts),
   patch: (url, body, opts) => req('PATCH', url, body, opts),
   del: (url, opts) => req('DELETE', url, undefined, opts),
+  upload,
 };
 
 export const fmtINR = (n) =>

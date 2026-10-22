@@ -234,10 +234,10 @@ async function main() {
     backupTrigger.json.note === 'Backups are automatic on Cloudflare D1 (Time Travel, 30-day point-in-time restore).',
     'POST /api/admin/backups → 200 {ok:true, file:null, note:…}', backupTrigger);
 
-  // ---- export: full-database JSON dump, downloadable, all 17 tables, row counts sane ----
+  // ---- export: full-database JSON dump, downloadable, all 18 tables, row counts sane ----
   const EXPORT_TABLE_KEYS = ['categories', 'families', 'segments', 'options', 'rules', 'companion_links',
     'parts', 'part_families', 'price_lists', 'base_prices', 'option_prices', 'part_prices',
-    'customers', 'quotes', 'quote_lines', 'audit_log', 'clarifications'];
+    'customers', 'quotes', 'quote_lines', 'audit_log', 'attachments', 'clarifications'];
   const exportRes = await fetch(`${WK}/api/admin/export`, { headers: H });
   const exportJson = await exportRes.json();
   assert(exportRes.status === 200, 'GET /api/admin/export → 200', exportRes.status);
@@ -245,7 +245,7 @@ async function main() {
   assert(cd.includes('epe-quote.'), 'export Content-Disposition contains "epe-quote."', cd);
   const exportKeys = Object.keys(exportJson);
   assert(exportKeys.length === EXPORT_TABLE_KEYS.length && EXPORT_TABLE_KEYS.every((t) => exportKeys.includes(t)),
-    'export body has exactly the 17 table keys', exportKeys);
+    'export body has exactly the 18 table keys', exportKeys);
   // spot-check row counts for 3 tables against other already-verified endpoints (DB is back at
   // baseline here, so these are also the steady-state counts)
   const dashboardForExport = await get('/api/dashboard');

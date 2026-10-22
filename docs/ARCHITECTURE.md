@@ -107,6 +107,10 @@ Route groups:
   `/revise` (same number, next revision), `/clone` (new number), `/reorder`, `/audit` (history),
   lines via `POST /api/quotes/:id/lines`, `PATCH/DELETE /api/lines/:id`,
   `PATCH /api/lines/:id/reconfigure`.
+- **Attachments & approval (FR-A30)**: `GET/POST /api/quotes/:id/attachments`,
+  `GET/DELETE /api/attachments/:id` (files in R2/`server/uploads/`, metadata in the `attachments`
+  table), `PATCH /api/quotes/:id/approval` (admin-only; sets `quotes.approval_status/approved_by/
+  approved_at/approval_notes`).
 - **Clarifications (FR-A32)**: `GET/POST /api/quotes/:id/clarifications` (POST requires a non-Draft
   quote — post-offer only), `PATCH /api/clarifications/:id/respond`,
   `DELETE /api/clarifications/:id` (soft-remove). `GET /api/dashboard` additionally returns
@@ -124,12 +128,13 @@ Multi-write ops (clone/revise, line ops) are transactional.
 
 ## 4. Product roadmap
 
-**Done & verified** — the full FR-A1..A29 addendum: configurator (D1–D7), quoting lifecycle
+**Done & verified** — the full FR-A1..A32 addendum: configurator (D1–D7), quoting lifecycle
 (create/revise/clone/archive/delete, drag+keyboard reorder, history timeline, status pipeline),
 Admin (tabbed editor, accordion segments, guided rule builder, category/spare-parts CRUD, pricing
 authoring), dashboard, popularity ranking, data-safety layer, the server/client hardening from the
-QA review, and — as of the Cloudflare Worker rollout — **email/password authentication with
-server-side sessions in production**. Sweep and migration tests green.
+QA review, file attachments + manager approval, customer quote history comparison, post-offer
+clarifications + TAT tracking, and — as of the Cloudflare Worker rollout — **email/password
+authentication with server-side sessions in production**. Sweep and migration tests green.
 
 **NOT built yet — Tier-4 product roadmap** (these are milestones, not bugs; scope before building):
 1. ~~Authentication + server-side RBAC~~ — **DONE.** Production runs on email/password sessions

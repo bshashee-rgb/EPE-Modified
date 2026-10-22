@@ -37,12 +37,12 @@ production D1 has diverged ahead of it.
    the source datasheet's vocabulary (PDFs in `Filters/ Accumulators/ Switches/ Valves/`).
 4. **Never silently ₹0.** Unmapped / special options price as **PoA** (Price on Application).
 5. **Traceability**: archive-never-delete, full audit trail, immutable finalized (non-Draft) quotes,
-   revision letters. Don't weaken these. Every mutation calls `audit(...)`. Clarifications are
-   **archived, never hard-deleted**, same as every other entity here.
+   revision letters. Don't weaken these. Every mutation calls `audit(...)`. Attachments and
+   clarifications are **archived, never hard-deleted**, same as every other entity here.
 6. **Server is the authority.** Every add-line/reconfigure re-evaluates server-side and rejects
    incomplete/invalid configs — the client never persists a code the server didn't validate.
 7. **Data safety**: schema changes are additive-only versioned migrations; never edit an old one; run
-   `node quote-app/server/test-migrations.mjs` (`5 passed, 0 failed`). See [`server/CLAUDE.md`](quote-app/server/CLAUDE.md).
+   `node quote-app/server/test-migrations.mjs` (`6 passed, 0 failed`). See [`server/CLAUDE.md`](quote-app/server/CLAUDE.md).
 8. **NEVER run a `--remote` schema-reset or data-import against production D1** — it wipes live quotes.
    See [`worker/CLAUDE.md`](quote-app/worker/CLAUDE.md) and [DEPLOYMENT](docs/DEPLOYMENT.md).
 9. **Match the surrounding code**: plain React + hooks, hand-written CSS (no TS, no CSS/state

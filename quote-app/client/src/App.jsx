@@ -118,7 +118,7 @@ export default function App() {
         {is('configure') && (validId(route.args[0])
           ? <Configurator familyId={+route.args[0]} nav={nav} presetCode={route.args[1] ? safeDecode(route.args.slice(1).join('/')) : null} />
           : <NotFound nav={nav} />)}
-        {is('quote') && (validId(route.args[0]) ? <QuoteDetail quoteId={+route.args[0]} nav={nav} /> : <NotFound nav={nav} />)}
+        {is('quote') && (validId(route.args[0]) ? <QuoteDetail quoteId={+route.args[0]} nav={nav} role={effectiveRole} /> : <NotFound nav={nav} />)}
         {is('parts') && <Parts nav={nav} />}
         {is('admin') && (effectiveRole === 'admin' ? <Admin nav={nav} /> : <NotFound nav={nav} />)}
         {!PAGES.includes(route.page) && <NotFound nav={nav} />}

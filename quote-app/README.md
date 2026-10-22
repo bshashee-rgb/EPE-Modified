@@ -182,6 +182,17 @@ Canonical docs (single source of truth — this changelog does not repeat them):
   states added. Line reordering is now **keyboard-accessible** (focus the ⠿ handle, ↑/↓ to move) with a
   visible focus ring and the drop-highlight clears on drag-leave; the add-item drawer's search resets
   when switching the Products / Parts sub-tabs.
+- **Attachments & manager approval (FR-A30):** a new **Attachments** tab on the quote page lets any
+  user upload any file type to a quote (a small executable/script denylist is rejected), preview
+  PDF/image attachments inline, download any attachment, and remove one (soft-removed, never hard
+  deleted). The same tab shows the quote's **approval status** (Pending/Approved/Rejected + note),
+  settable only by the `admin` role. New `attachments` table + four `approval_*` columns on `quotes`
+  (additive migration — `quote-app/worker/migrations/001-attachments.sql`); files live in a
+  Cloudflare R2 bucket in production/staging/sandbox, a local `server/uploads/` directory in Express
+  dev. New routes mirrored in both runtimes: `GET/POST /api/quotes/:id/attachments`,
+  `GET/DELETE /api/attachments/:id`, `PATCH /api/quotes/:id/approval`. Every action audits via the
+  existing `audit_log`. **Not yet deployed to production/sandbox** — requires R2 to be enabled on
+  the target Cloudflare account first (see `docs/DEPLOYMENT.md`).
 - **Customer quote history / comparison (FR-A31):** a new **Customer History** tab on the quote page
   (shown once a customer is selected) lists that customer's other quotations — number/rev, date,
   status, total — including archived ones, most recent first. Each row expands (accordion,
@@ -195,7 +206,7 @@ Canonical docs (single source of truth — this changelog does not repeat them):
   computed turnaround time (TAT = responded_at − raised_at, never stored). Two new Dashboard tiles
   (open clarification count, average response time) give a lightweight TAT view. New
   `ClarificationsPanel.jsx`; new `clarifications` table (additive migration,
-  `quote-app/worker/migrations/001-clarifications.sql`); new routes mirrored in both runtimes:
+  `quote-app/worker/migrations/002-clarifications.sql`); new routes mirrored in both runtimes:
   `GET/POST /api/quotes/:id/clarifications`, `PATCH /api/clarifications/:id/respond`,
   `DELETE /api/clarifications/:id` (soft-remove only).
 - **Choose target quote from Parts & Spares (FR-A27):** the per-part button is now **Add to Quote**

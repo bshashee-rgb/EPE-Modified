@@ -67,6 +67,20 @@ const CONTENT_FIELDS = ['customer_id', 'quote_date', 'validity_days', 'terms', '
 const clampPct = (v) => Math.max(0, Math.min(100, Number.isFinite(+v) ? +v : 0));
 const clampQty = (v) => { const n = +v; return Number.isFinite(n) && n > 0 ? n : 1; };
 
+// ---- Attachments: any file type except an executable/script denylist (malware-storage risk).
+const BLOCKED_EXTENSIONS = new Set(['.exe', '.js', '.mjs', '.cjs', '.bat', '.cmd', '.sh', '.ps1', '.msi', '.com', '.scr', '.vbs', '.vbe', '.wsf', '.jar', '.apk', '.dll']);
+const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024; // 25MB
+// Served with Content-Disposition: inline. text/html & image/svg+xml are deliberately excluded
+// even though they aren't "dangerous" in the malware sense — rendering either inline at the
+// app's own origin is a classic stored-XSS vector.
+const INLINE_PREVIEW_MIME = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+const ATTACHMENT_CATEGORIES = ['technical', 'costing', 'scan', 'other'];
+const APPROVAL_DECISIONS = ['approved', 'rejected'];
+const fileExt = (name) => { const m = /\.[^./\\]+$/.exec(String(name || '')); return m ? m[0].toLowerCase() : ''; };
+// Strip path separators/control chars and cap length -- used in the R2 key and in the
+// Content-Disposition filename we echo back.
+const sanitizeFileName = (name) => String(name || 'file').replace(/[\/\\]/g, '_').replace(/[\x00-\x1f]/g, '').slice(-180) || 'file';
+
 // ---- Post-offer clarifications ----
 const QUERY_TYPES = ['technical', 'commercial'];
 
@@ -256,6 +270,84 @@ app.get('/api/quotes/:id/audit', async (c) => {
   const id = +c.req.param('id');
   const rows = (await DB(c).prepare("SELECT id, at, actor, action, detail FROM audit_log WHERE entity='quote' AND entity_id=? ORDER BY id DESC").bind(String(id)).all()).results;
   return c.json(rows.map((r) => ({ ...r, detail: r.detail ? JSON.parse(r.detail) : null })));
+});
+
+// ---------- Attachments (files against a quote — technical workings, costing sheets, scans) ----------
+// No requireDraft gate: attachments/approval are internal governance about the quote, not
+// customer-facing commercial content, and must keep working after a quote is Sent (the main
+// real-world use case) — same reasoning as why /archive and plain status changes are exempted.
+app.get('/api/quotes/:id/attachments', async (c) => {
+  const quoteId = +c.req.param('id');
+  const rows = (await DB(c).prepare('SELECT * FROM attachments WHERE quote_id=? AND archived=0 ORDER BY uploaded_at DESC, id DESC').bind(quoteId).all()).results;
+  return c.json(rows);
+});
+
+app.post('/api/quotes/:id/attachments', async (c) => {
+  const quoteId = +c.req.param('id');
+  const quote = await DB(c).prepare('SELECT id FROM quotes WHERE id=?').bind(quoteId).first();
+  if (!quote) return c.json({ error: 'quote not found' }, 404);
+  const form = await c.req.formData().catch(() => null);
+  const file = form && form.get('file');
+  if (!file || typeof file === 'string') return c.json({ error: 'file is required' }, 400);
+  const category = ATTACHMENT_CATEGORIES.includes(form.get('category')) ? form.get('category') : 'other';
+  const ext = fileExt(file.name);
+  if (BLOCKED_EXTENSIONS.has(ext)) {
+    return c.json({ error: `Files of type '${ext}' are not allowed for security reasons.` }, 400);
+  }
+  if (file.size > MAX_ATTACHMENT_BYTES) {
+    return c.json({ error: `File is too large — maximum is ${Math.round(MAX_ATTACHMENT_BYTES / 1024 / 1024)}MB.` }, 400);
+  }
+  const r2Key = `q${quoteId}/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
+  const mimeType = file.type || 'application/octet-stream';
+  await c.env.ATTACHMENTS.put(r2Key, file.stream(), { httpMetadata: { contentType: mimeType } });
+  const r = await DB(c).prepare(`INSERT INTO attachments(quote_id,file_name,mime_type,size_bytes,r2_key,category,uploaded_by)
+      VALUES (?,?,?,?,?,?,?)`)
+    .bind(quoteId, file.name, mimeType, file.size, r2Key, category, actor(c)).run();
+  const newId = r.meta.last_row_id;
+  await d.audit(DB(c), actor(c), 'upload-attachment', 'attachment', newId, { file_name: file.name, category });
+  await d.audit(DB(c), actor(c), 'upload-attachment', 'quote', quoteId, { file_name: file.name, attachment_id: newId });
+  return c.json(await DB(c).prepare('SELECT * FROM attachments WHERE id=?').bind(newId).first());
+});
+
+app.get('/api/attachments/:id', async (c) => {
+  const id = +c.req.param('id');
+  const row = await DB(c).prepare('SELECT * FROM attachments WHERE id=? AND archived=0').bind(id).first();
+  if (!row) return c.json({ error: 'attachment not found' }, 404);
+  const obj = await c.env.ATTACHMENTS.get(row.r2_key);
+  if (!obj) return c.json({ error: 'file not found in storage' }, 404);
+  const forceDownload = c.req.query('download') === '1';
+  const inline = !forceDownload && INLINE_PREVIEW_MIME.has(row.mime_type);
+  c.header('Content-Type', row.mime_type);
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="${sanitizeFileName(row.file_name)}"`);
+  return c.body(obj.body);
+});
+
+app.delete('/api/attachments/:id', async (c) => {
+  const id = +c.req.param('id');
+  const row = await DB(c).prepare('SELECT * FROM attachments WHERE id=?').bind(id).first();
+  if (!row) return c.json({ error: 'attachment not found' }, 404);
+  await DB(c).prepare('UPDATE attachments SET archived=1 WHERE id=?').bind(id).run();
+  await d.audit(DB(c), actor(c), 'remove-attachment', 'attachment', id, { file_name: row.file_name });
+  await d.audit(DB(c), actor(c), 'remove-attachment', 'quote', row.quote_id, { file_name: row.file_name, attachment_id: id });
+  return c.json({ ok: true });
+});
+
+// ---------- Manager approval (admin-only; reuses the existing admin role — no separate "manager" role) ----------
+app.patch('/api/quotes/:id/approval', async (c) => {
+  const session = c.get('session');
+  if (session.role !== 'admin') return c.json({ error: 'Admin access required' }, 403);
+  const id = +c.req.param('id');
+  const quote = await DB(c).prepare('SELECT id FROM quotes WHERE id=?').bind(id).first();
+  if (!quote) return c.json({ error: 'not found' }, 404);
+  const body = await c.req.json().catch(() => ({}));
+  if (!APPROVAL_DECISIONS.includes(body.decision)) {
+    return c.json({ error: `decision must be one of: ${APPROVAL_DECISIONS.join(', ')}` }, 400);
+  }
+  await DB(c).prepare('UPDATE quotes SET approval_status=?, approved_by=?, approved_at=datetime(\'now\'), approval_notes=? WHERE id=?')
+    .bind(body.decision, actor(c), body.notes || null, id).run();
+  await d.audit(DB(c), actor(c), body.decision === 'approved' ? 'approve' : 'reject', 'quote', id, { notes: body.notes || null });
+  return c.json(await DB(c).prepare('SELECT * FROM quotes WHERE id=?').bind(id).first());
 });
 
 app.get('/api/quotes/:id', async (c) => {
@@ -1026,7 +1118,7 @@ app.get('/api/dashboard', async (c) => {
 });
 
 // ---------- Admin: backups / export ----------
-const EXPORT_TABLES = ['categories','families','segments','options','rules','companion_links','parts','part_families','price_lists','base_prices','option_prices','part_prices','customers','quotes','quote_lines','audit_log','clarifications'];
+const EXPORT_TABLES = ['categories','families','segments','options','rules','companion_links','parts','part_families','price_lists','base_prices','option_prices','part_prices','customers','quotes','quote_lines','audit_log','attachments','clarifications'];
 
 // D1 Time Travel replaces file snapshots (NFR-4): restore via
 //   wrangler d1 time-travel restore epe-quote --timestamp=<ISO>

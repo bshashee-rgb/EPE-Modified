@@ -19,11 +19,22 @@ This IS production: live at https://epe-quote.ramki-461.workers.dev, system of r
   constraint violations to `409`/`400` (same contract as the Express error middleware).
 - D1 helpers (family-meta loading, price-list lookup, audit writes) live in `src/data.js`.
 
+## R2 (attachments)
+
+- Binding `ATTACHMENTS` (see `wrangler.jsonc`) — one bucket per environment, same isolation rule as
+  D1: `epe-quote-attachments-sandbox` is provisioned; production/staging buckets are a deliberate
+  later step requiring R2 to be enabled on that Cloudflare account first (don't assume they exist
+  yet — see `docs/DEPLOYMENT.md`).
+- Metadata lives in D1 (`attachments` table); R2 holds only the bytes, keyed `q<quoteId>/<uuid>-<name>`.
+
 ## Migrations directory
 
 `migrations/` holds additive-only SQL files for patching an **already-live** D1 database (a fresh
 database already has the current shape via `schema.sql`). D1 has no `_migrations` tracking table —
-these files are **not idempotent** and must be applied by hand, exactly once, per environment.
+these files are **not idempotent** and must be applied by hand, exactly once, per environment, in
+numeric order (`001-attachments.sql`, `002-clarifications.sql`, …; same manual-op discipline as the
+existing `schema.sql`/`data.sql` warnings below). `schema.sql` is kept in sync so a fresh local/CI
+D1 already has the current shape with no separate migration step needed.
 
 ## Auth model
 
@@ -60,8 +71,9 @@ these files are **not idempotent** and must be applied by hand, exactly once, pe
 One-shot gate: resets local D1 from a fresh snapshot, builds the client, boots Express on port
 **4781** and `wrangler dev` on **8787** against identical data (never touches 4780 — the
 production Express port), runs `test/parity.mjs` + `test/writes.mjs` + `test/admin-writes.mjs` +
-`test/clarifications.mjs` in order, tears down both servers regardless of outcome. This is the CI
-gate (`ci.yml`).
+`test/attachments.mjs` + `test/clarifications.mjs` in order, tears down both servers regardless of
+outcome. This is the CI gate (`ci.yml`). `attachments.mjs` relies on local `wrangler dev`'s
+built-in R2 emulation (Miniflare) — no real Cloudflare account/bucket is touched.
 
 ## THE MOST IMPORTANT RULE
 
