@@ -71,9 +71,9 @@ all quotations.** Only for initial setup or a deliberate clean catalogue reset �
 
 ```bash
 node sweep.js            # expect: 36 families, 37045 checks, 0 failures
-node test-migrations.mjs # expect: 5 passed, 0 failed (after any schema change)
+node test-migrations.mjs # expect: 6 passed, 0 failed (after any schema change)
 ```
 
-DB baseline to restore after testing: **16 quotes · 39 families · 61 parts · 5 categories**.
+DB baseline to restore after testing: **22 quotes · 39 families · 61 parts · 5 categories**.
 
 Full test layers, conventions, and per-area checklists: `../TESTING.md`.

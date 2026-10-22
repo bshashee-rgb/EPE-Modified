@@ -17,7 +17,7 @@ cosmetic one. Test accordingly: correctness of codes/prices/locks first, pixels 
 | L1 Engine | Rule semantics D1–D7, code render/parse, pricing | node scripts against `engine.js` (see §3) | engine changes |
 | L2 API functional | Endpoints, guards, status codes, audit | throwaway node scripts vs `localhost:4780` (see §4) | server changes |
 | L3 Catalogue sweep | Every published family valid end-to-end | `node server/sweep.js` → **36 families, 37,045 checks, 0 failures** | engine/seed/rule changes — ALWAYS |
-| L4 Data safety | No data loss across schema changes | `node server/test-migrations.mjs` → **5 passed, 0 failed** | any `db.js`/schema change |
+| L4 Data safety | No data loss across schema changes | `node server/test-migrations.mjs` → **6 passed, 0 failed** | any `db.js`/schema change |
 | L5 Browser E2E | Real user flows in the running UI | Claude Code preview browser (see §5) | every user-visible change |
 | L6 UI/UX & a11y review | States, feedback, keyboard, print | checklist review (see §6) | new/changed screens |
 
@@ -30,7 +30,7 @@ done. It is cheap (~seconds); run it liberally.
 
 1. **Self-cleaning test data.** Every test that creates quotes/parts/families/categories must delete
    them at the end (use the API; for stubborn residue use direct better-sqlite3 deletes). After a test
-   session, verify the baseline: **16 quotes · 39 families · 61 parts · 5 categories · 61 spares**.
+   session, verify the baseline: **22 quotes · 39 families · 61 parts · 5 categories · 61 spares**.
    (If the legitimate business data grows, update this line and §2 of CLAUDE.md.)
 2. **Test against the live server, not mocks.** The app is API-first and better-sqlite3 is
    synchronous — there is no mocking layer and none is wanted. Spin the real server, hit real
@@ -164,7 +164,7 @@ error path (kill the server) → keyboard only → print (if applicable)* — th
 ## 7. Definition of done (gate for every change)
 
 - [ ] `node server/sweep.js` → 0 failures  (always)
-- [ ] `node server/test-migrations.mjs` → 5 passed  (if schema touched)
+- [ ] `node server/test-migrations.mjs` → 6 passed  (if schema touched)
 - [ ] `npm run build --prefix client` clean  (if client touched)
 - [ ] L2 script for changed endpoints incl. the three regression families (lock/revise/constraint-mapping)
 - [ ] L5 browser verification of the changed flow + API-level confirmation of state
