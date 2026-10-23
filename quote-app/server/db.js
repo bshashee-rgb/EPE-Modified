@@ -105,9 +105,17 @@ const MIGRATIONS = [
     if (!hasCol(db, 'quotes', 'approved_at')) db.exec("ALTER TABLE quotes ADD COLUMN approved_at TEXT");
     if (!hasCol(db, 'quotes', 'approval_notes')) db.exec("ALTER TABLE quotes ADD COLUMN approval_notes TEXT");
   } },
+  { name: '009-customers-gst', up(db) {
+    if (!hasCol(db, 'customers', 'code')) db.exec("ALTER TABLE customers ADD COLUMN code TEXT");
+    if (!hasCol(db, 'customers', 'source_state')) db.exec("ALTER TABLE customers ADD COLUMN source_state TEXT DEFAULT 'Telangana'");
+    if (!hasCol(db, 'customers', 'place_of_supply_state')) db.exec("ALTER TABLE customers ADD COLUMN place_of_supply_state TEXT");
+    db.exec(`UPDATE customers SET code = 'CUST-' || substr('0000' || (SELECT COUNT(*) FROM customers c2 WHERE c2.id <= customers.id), -4, 4) WHERE code IS NULL`);
+    if (!hasIndex(db, 'idx_customers_code')) db.exec('CREATE UNIQUE INDEX idx_customers_code ON customers(code)');
+  } },
 ];
 
 const hasCol = (db, table, col) => db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col);
+const hasIndex = (db, name) => !!db.prepare("SELECT 1 FROM sqlite_master WHERE type='index' AND name=?").get(name);
 
 // Safe rebuild: build the new table with the FULL current column set (incl.
 // archived / created_by / updated_by and the customer FK), assert that every

@@ -172,13 +172,41 @@ app.get('/api/parts', (req, res) => {
 });
 
 // ---------- Customers ----------
+function nextCustomerCode() {
+  const rows = db.prepare("SELECT code FROM customers WHERE code LIKE 'CUST-%'").all();
+  let max = 0;
+  for (const r of rows) { const m = r.code.match(/-(\d+)$/); if (m) max = Math.max(max, +m[1]); }
+  return `CUST-${String(max + 1).padStart(4, '0')}`;
+}
 app.get('/api/customers', (req, res) => res.json(db.prepare('SELECT * FROM customers ORDER BY name').all()));
+app.get('/api/customers/:id', (req, res) => {
+  const row = db.prepare('SELECT * FROM customers WHERE id=?').get(+req.params.id);
+  if (!row) return res.status(404).json({ error: 'customer not found' });
+  res.json(row);
+});
 app.post('/api/customers', (req, res) => {
-  const { name, contact, email, phone, address, gstin } = req.body;
-  const r = db.prepare('INSERT INTO customers(name,contact,email,phone,address,gstin) VALUES (?,?,?,?,?,?)')
-    .run(name, contact || null, email || null, phone || null, address || null, gstin || null);
-  audit(req.headers['x-actor'], 'create', 'customer', r.lastInsertRowid);
+  const { name, contact, email, phone, address, gstin, place_of_supply_state } = req.body;
+  const sourceState = req.body.source_state || 'Telangana';
+  const code = nextCustomerCode();
+  const r = db.prepare(`INSERT INTO customers(name,contact,email,phone,address,gstin,code,source_state,place_of_supply_state)
+      VALUES (?,?,?,?,?,?,?,?,?)`)
+    .run(name, contact || null, email || null, phone || null, address || null, gstin || null, code, sourceState, place_of_supply_state || null);
+  audit(req.headers['x-actor'], 'create', 'customer', r.lastInsertRowid, { code });
   res.json(db.prepare('SELECT * FROM customers WHERE id=?').get(r.lastInsertRowid));
+});
+app.patch('/api/customers/:id', (req, res) => {
+  const id = +req.params.id;
+  const existing = db.prepare('SELECT id FROM customers WHERE id=?').get(id);
+  if (!existing) return res.status(404).json({ error: 'customer not found' });
+  const allowed = ['name', 'contact', 'email', 'phone', 'address', 'gstin', 'source_state', 'place_of_supply_state'];
+  const sets = [], vals = [];
+  for (const k of allowed) if (k in req.body) { sets.push(`${k}=?`); vals.push(req.body[k] || null); }
+  if (sets.length) {
+    vals.push(id);
+    db.prepare(`UPDATE customers SET ${sets.join(',')} WHERE id=?`).run(...vals);
+    audit(req.headers['x-actor'], 'update', 'customer', id, req.body);
+  }
+  res.json(db.prepare('SELECT * FROM customers WHERE id=?').get(id));
 });
 
 // ---------- Quotes ----------
@@ -844,6 +872,7 @@ app.get('/api/admin/summary', (req, res) => res.json({
   families: db.prepare('SELECT COUNT(*) n FROM families').get().n,
   spares: db.prepare('SELECT COUNT(*) n FROM parts').get().n,
   audit: db.prepare('SELECT COUNT(*) n FROM audit_log').get().n,
+  customers: db.prepare('SELECT COUNT(*) n FROM customers').get().n,
 }));
 
 // ---------- Data safety: backups & export (NFR-4) ----------

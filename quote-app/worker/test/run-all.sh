@@ -193,6 +193,10 @@ log "--- clarifications.mjs ---"
 node test/clarifications.mjs
 R_CLARIF=$?
 
+log "--- customers.mjs ---"
+node test/customers.mjs
+R_CUST=$?
+
 set -e
 
 # ===========================================================================
@@ -208,9 +212,10 @@ log "writes.mjs:         $(pass_fail "$R_WRITES")"
 log "admin-writes.mjs:   $(pass_fail "$R_ADMIN")"
 log "attachments.mjs:    $(pass_fail "$R_ATTACH")"
 log "clarifications.mjs: $(pass_fail "$R_CLARIF")"
+log "customers.mjs:      $(pass_fail "$R_CUST")"
 log "==================================================="
 
-if [ "$R_AUTH" -ne 0 ] || [ "$R_PARITY" -ne 0 ] || [ "$R_WRITES" -ne 0 ] || [ "$R_ADMIN" -ne 0 ] || [ "$R_ATTACH" -ne 0 ] || [ "$R_CLARIF" -ne 0 ]; then
+if [ "$R_AUTH" -ne 0 ] || [ "$R_PARITY" -ne 0 ] || [ "$R_WRITES" -ne 0 ] || [ "$R_ADMIN" -ne 0 ] || [ "$R_ATTACH" -ne 0 ] || [ "$R_CLARIF" -ne 0 ] || [ "$R_CUST" -ne 0 ]; then
   log "run-all: FAILED"
   exit 1
 fi

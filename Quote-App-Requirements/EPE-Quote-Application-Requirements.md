@@ -305,6 +305,20 @@ Feedback from the first working version produced these binding changes:
   as a lightweight starting point for TAT analysis (a fuller filterable report is a later phase if
   needed). Removing a clarification soft-removes it (never hard-deleted). New `clarifications`
   table (additive migration) — no changes to the `quotes` table.
+- **FR-A33 Customer module — billing details, GST type, generated ID, searchable picker.** A new
+  **Customers** page (open to every signed-in user) lets anyone create and edit a customer's billing
+  details — contact person, phone, email, GSTIN, billing address — none of which are mandatory.
+  Every customer gets a **generated customer ID** (`CUST-0001`, sequential) on creation. Each
+  customer also carries a **Source of Supply** state (EPE's own state, Indian-states dropdown,
+  defaults to Telangana) and a **Place of Supply** state (the customer's own state); comparing the
+  two determines the quote's **GST type** — same state is **intra-state (CGST+SGST)**, different
+  states is **inter-state (IGST)** — shown as the correct line(s) in the quotation's pricing
+  breakdown instead of a single flat "GST" line. This never changes the actual tax amount charged
+  (`tax_pct` stays as entered), only how it's labeled/split. Selecting a customer on a quote uses a
+  new **searchable picker** (type a name or a customer ID to filter) instead of a plain dropdown.
+  When a quote is marked **Sent** and its customer has no Place of Supply set yet, a one-time prompt
+  offers to fill in both states right there ("Save & Send") or skip ("Send anyway") — a soft gate,
+  never blocking a quote from going out.
 - **FR-A6 Catalogue-wide verification.** Each metadata release must pass an automated sweep proving, for every published family: the default configuration is violation-free; every option displayed as enabled is selectable without error (alone and pairwise with every parent option); and a full sequential configuration completes, validates, renders its ordering code and prices. (The v1.1 sweep covers 36 families / ~37,000 checks.)
 
 ## 9. Acceptance Criteria (summary)

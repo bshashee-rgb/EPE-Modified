@@ -96,7 +96,10 @@ CREATE TABLE part_prices (
 CREATE TABLE customers (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
-    contact TEXT, email TEXT, phone TEXT, address TEXT, gstin TEXT
+    contact TEXT, email TEXT, phone TEXT, address TEXT, gstin TEXT,
+    code TEXT UNIQUE,                            -- CUST-0001, generated
+    source_state TEXT DEFAULT 'Telangana',       -- EPE's dispatch state (Indian GST source-of-supply)
+    place_of_supply_state TEXT                   -- customer's state; drives CGST+SGST vs IGST
   );
 CREATE TABLE quotes (
     id INTEGER PRIMARY KEY,

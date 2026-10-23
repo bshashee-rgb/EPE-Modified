@@ -56,6 +56,7 @@ lg.exec(`
 lg.prepare("INSERT INTO categories(id,code,name) VALUES (1,'FIL','Filters')").run();
 lg.prepare("INSERT INTO families(id,category_id,code,name) VALUES (1,1,'LD','LD Filter')").run();
 lg.prepare("INSERT INTO parts(id,family_id,part_number,name) VALUES (1,1,'BYP01','Bypass valve')").run();
+lg.prepare("INSERT INTO customers(id,name) VALUES (1,'Legacy Customer')").run();
 lg.prepare("INSERT INTO quotes(id,number,revision,status,created_at) VALUES (1,'Q-2025-0001','A','Won','2025-01-02 10:00:00')").run();
 lg.close();
 
@@ -64,6 +65,10 @@ const db = openL(); createL(db, { backup: true });
 const cols = db.prepare('PRAGMA table_info(quotes)').all().map(c => c.name);
 chk('legacy: quote_date/archived/created_by/updated_by added', ['quote_date', 'archived', 'created_by', 'updated_by'].every(c => cols.includes(c)));
 chk('legacy: approval_status/approved_by/approved_at/approval_notes added', ['approval_status', 'approved_by', 'approved_at', 'approval_notes'].every(c => cols.includes(c)));
+const custCols = db.prepare('PRAGMA table_info(customers)').all().map(c => c.name);
+chk('legacy: customers code/source_state/place_of_supply_state added', ['code', 'source_state', 'place_of_supply_state'].every(c => custCols.includes(c)));
+const cust1 = db.prepare('SELECT * FROM customers WHERE id=1').get();
+chk('legacy: existing customer backfilled with code CUST-0001 and default source_state', cust1.code === 'CUST-0001' && cust1.source_state === 'Telangana' && cust1.name === 'Legacy Customer');
 const q1 = db.prepare('SELECT * FROM quotes WHERE id=1').get();
 chk('legacy: original quote data intact', q1.number === 'Q-2025-0001' && q1.status === 'Won' && q1.created_at === '2025-01-02 10:00:00');
 chk('legacy: family & part rows intact', db.prepare('SELECT name FROM families WHERE id=1').get().name === 'LD Filter' && !!db.prepare("SELECT 1 FROM parts WHERE part_number='BYP01'").get());

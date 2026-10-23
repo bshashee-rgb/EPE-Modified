@@ -16,9 +16,11 @@ code**, don't introduce a new pattern for one feature.
 - `src/styles.css` — all styles: hand-written CSS with the existing CSS-variable palette
   (`--accent #0b5cad` hydraulic blue, `--ok`/`--warn`/`--bad` semantics). Reuse these variables;
   don't hardcode new colors.
-- `src/pages/` — Dashboard, Catalog, Configurator, QuoteDetail, Parts, Admin.
+- `src/pages/` — Dashboard, Catalog, Configurator, QuoteDetail, Parts, Customers, Admin.
 - `src/components/` — AddItemDrawer, CopyCode, CommitInput, AttachmentsPanel,
-  CustomerHistoryPanel, ClarificationsPanel, etc.
+  CustomerHistoryPanel, ClarificationsPanel, CustomerPicker, etc.
+- `src/data/indianStates.js` — the Indian states list (Source/Place of Supply dropdowns) and the
+  `gstType(source, place)` helper (intra/inter/unknown) — plain reference data, no backend call.
 
 ## api.js contract
 
