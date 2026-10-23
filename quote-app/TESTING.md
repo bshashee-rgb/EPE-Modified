@@ -17,7 +17,7 @@ cosmetic one. Test accordingly: correctness of codes/prices/locks first, pixels 
 | L1 Engine | Rule semantics D1–D7, code render/parse, pricing | node scripts against `engine.js` (see §3) | engine changes |
 | L2 API functional | Endpoints, guards, status codes, audit | throwaway node scripts vs `localhost:4780` (see §4) | server changes |
 | L3 Catalogue sweep | Every published family valid end-to-end | `node server/sweep.js` → **36 families, 37,045 checks, 0 failures** | engine/seed/rule changes — ALWAYS |
-| L4 Data safety | No data loss across schema changes | `node server/test-migrations.mjs` → **6 passed, 0 failed** | any `db.js`/schema change |
+| L4 Data safety | No data loss across schema changes | `node server/test-migrations.mjs` → **8 passed, 0 failed** | any `db.js`/schema change |
 | L5 Browser E2E | Real user flows in the running UI | Claude Code preview browser (see §5) | every user-visible change |
 | L6 UI/UX & a11y review | States, feedback, keyboard, print | checklist review (see §6) | new/changed screens |
 
@@ -164,7 +164,7 @@ error path (kill the server) → keyboard only → print (if applicable)* — th
 ## 7. Definition of done (gate for every change)
 
 - [ ] `node server/sweep.js` → 0 failures  (always)
-- [ ] `node server/test-migrations.mjs` → 6 passed  (if schema touched)
+- [ ] `node server/test-migrations.mjs` → 8 passed  (if schema touched)
 - [ ] `npm run build --prefix client` clean  (if client touched)
 - [ ] L2 script for changed endpoints incl. the three regression families (lock/revise/constraint-mapping)
 - [ ] L5 browser verification of the changed flow + API-level confirmation of state

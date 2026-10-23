@@ -42,7 +42,7 @@ production D1 has diverged ahead of it.
 6. **Server is the authority.** Every add-line/reconfigure re-evaluates server-side and rejects
    incomplete/invalid configs — the client never persists a code the server didn't validate.
 7. **Data safety**: schema changes are additive-only versioned migrations; never edit an old one; run
-   `node quote-app/server/test-migrations.mjs` (`6 passed, 0 failed`). See [`server/CLAUDE.md`](quote-app/server/CLAUDE.md).
+   `node quote-app/server/test-migrations.mjs` (`8 passed, 0 failed`). See [`server/CLAUDE.md`](quote-app/server/CLAUDE.md).
 8. **NEVER run a `--remote` schema-reset or data-import against production D1** — it wipes live quotes.
    See [`worker/CLAUDE.md`](quote-app/worker/CLAUDE.md) and [DEPLOYMENT](docs/DEPLOYMENT.md).
 9. **Match the surrounding code**: plain React + hooks, hand-written CSS (no TS, no CSS/state
@@ -75,6 +75,6 @@ D1 — never touches production data). CI (`ci.yml`) runs the full worker suite 
 ## Conventions
 
 - Add a feature → add an `FR-A#` entry to the PRD **and** `quote-app/README.md` (addendum ends at
-  **FR-A32**; next is FR-A33). Keep both in sync with the code.
+  **FR-A33**; next is FR-A34). Keep both in sync with the code.
 - When you add or change a route in one runtime, mirror it in the other (Express ↔ Worker) — the
   frozen client calls both; a missing route is a production 404.

@@ -49,7 +49,9 @@ design decisions in this codebase — keep them intact:
 customer orders by; *segment/position* — one slot in that code; *family* — a product series (LD, AS,
 AP…); *PoA* — price on application; *on-request* — availability to confirm; *companion* — related
 product auto-proposed with a config (element, seal kit, safety block, clamps); *spare/part* — fixed
-part number, not configured; *revision* — letter suffix of a re-issued quote number.
+part number, not configured; *revision* — letter suffix of a re-issued quote number; *Source of
+Supply* — EPE's own state for GST purposes (defaults Telangana); *Place of Supply* — the customer's
+state; same state → **intra-state** (CGST+SGST split), different states → **inter-state** (IGST).
 
 ---
 
@@ -115,6 +117,10 @@ Route groups:
   quote — post-offer only), `PATCH /api/clarifications/:id/respond`,
   `DELETE /api/clarifications/:id` (soft-remove). `GET /api/dashboard` additionally returns
   `openClarifications`/`avgResponseHours`.
+- **Customers (FR-A33)**: `GET/POST /api/customers` (`POST` generates a sequential `code`,
+  `CUST-0001`), `GET/PATCH /api/customers/:id` (edit billing details, `source_state`,
+  `place_of_supply_state` — no DELETE). `GET /api/admin/summary` additionally returns a `customers`
+  count.
 - **Admin**: `/api/admin/categories`, `/api/admin/families`, `/api/admin/segments`,
   `/api/admin/options`, `/api/admin/rules`, base/option prices, `/api/admin/parts`,
   `/api/admin/summary`, `/api/admin/audit`, `/api/admin/backups`, `/api/admin/export`.
@@ -128,12 +134,13 @@ Multi-write ops (clone/revise, line ops) are transactional.
 
 ## 4. Product roadmap
 
-**Done & verified** — the full FR-A1..A32 addendum: configurator (D1–D7), quoting lifecycle
+**Done & verified** — the full FR-A1..A33 addendum: configurator (D1–D7), quoting lifecycle
 (create/revise/clone/archive/delete, drag+keyboard reorder, history timeline, status pipeline),
 Admin (tabbed editor, accordion segments, guided rule builder, category/spare-parts CRUD, pricing
 authoring), dashboard, popularity ranking, data-safety layer, the server/client hardening from the
 QA review, file attachments + manager approval, customer quote history comparison, post-offer
-clarifications + TAT tracking, and — as of the Cloudflare Worker rollout — **email/password
+clarifications + TAT tracking, the customer module (billing details, GST intra/inter type, generated
+IDs, searchable picker), and — as of the Cloudflare Worker rollout — **email/password
 authentication with server-side sessions in production**. Sweep and migration tests green.
 
 **NOT built yet — Tier-4 product roadmap** (these are milestones, not bugs; scope before building):

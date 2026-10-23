@@ -71,9 +71,9 @@ D1 already has the current shape with no separate migration step needed.
 One-shot gate: resets local D1 from a fresh snapshot, builds the client, boots Express on port
 **4781** and `wrangler dev` on **8787** against identical data (never touches 4780 — the
 production Express port), runs `test/parity.mjs` + `test/writes.mjs` + `test/admin-writes.mjs` +
-`test/attachments.mjs` + `test/clarifications.mjs` in order, tears down both servers regardless of
-outcome. This is the CI gate (`ci.yml`). `attachments.mjs` relies on local `wrangler dev`'s
-built-in R2 emulation (Miniflare) — no real Cloudflare account/bucket is touched.
+`test/attachments.mjs` + `test/clarifications.mjs` + `test/customers.mjs` in order, tears down both
+servers regardless of outcome. This is the CI gate (`ci.yml`). `attachments.mjs` relies on local
+`wrangler dev`'s built-in R2 emulation (Miniflare) — no real Cloudflare account/bucket is touched.
 
 ## THE MOST IMPORTANT RULE
 

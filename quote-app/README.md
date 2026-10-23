@@ -200,6 +200,19 @@ Canonical docs (single source of truth — this changelog does not repeat them):
   matches one on the quote being viewed is flagged with a price/discount delta note. New
   `CustomerHistoryPanel.jsx`; backend is a single additive `?customer_id=` filter on
   `GET /api/quotes` (both runtimes) — no schema change.
+- **Customer module — billing details, GST type, generated ID, searchable picker (FR-A33):** a new
+  top-level **Customers** page (`client/src/pages/Customers.jsx`, open to every signed-in user) adds
+  full billing-detail capture (contact, phone, email, GSTIN, address — all optional) and a generated
+  **`CUST-0001`-style customer ID** (`nextCustomerCode`, mirrors `nextQuoteNumber`'s pattern). Two new
+  customer fields, **Source of Supply** and **Place of Supply** (Indian-states dropdowns,
+  `client/src/data/indianStates.js`), determine the quote's GST type — same state → **CGST+SGST**,
+  different states → **IGST** — shown correctly in the pricing breakdown in place of the old flat
+  "GST" line (the tax amount itself is unchanged, only the label/split). A new `CustomerPicker.jsx`
+  (type-ahead by name or code) replaces the plain `<select>` everywhere a quote picks its customer.
+  Marking a quote **Sent** with no Place of Supply set triggers a one-time "Save & Send" / "Send
+  anyway" prompt. New `GET/PATCH /api/customers/:id` routes (mirrored both runtimes); `code`,
+  `source_state`, `place_of_supply_state` columns added to `customers` (additive migration,
+  `quote-app/worker/migrations/003-customers.sql`, backfills existing rows).
 - **Post-offer clarifications & TAT tracking (FR-A32):** a new **Clarifications** tab on the quote
   page (available once the quote is no longer Draft) lets any user log a customer's technical or
   commercial question and any user respond; each entry shows who raised/answered it, when, and the

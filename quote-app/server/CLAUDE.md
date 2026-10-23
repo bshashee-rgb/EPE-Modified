@@ -45,7 +45,7 @@ and the Worker.
 - **Migrations are versioned and additive-only.** Never edit an existing entry in the
   `MIGRATIONS` array in `db.js` — **add a new migration** (guarded, idempotent `up(db)`) that
   only adds columns/tables/indexes.
-- After any schema change, run `node test-migrations.mjs` and confirm **6 passed, 0 failed**.
+- After any schema change, run `node test-migrations.mjs` and confirm **8 passed, 0 failed**.
   It round-trips the real DB and a synthetic legacy-schema DB, asserting every row/column
   survives.
 - Backups live in `backups/` (retention 40): before every migration, daily on startup, and on
@@ -71,7 +71,7 @@ all quotations.** Only for initial setup or a deliberate clean catalogue reset �
 
 ```bash
 node sweep.js            # expect: 36 families, 37045 checks, 0 failures
-node test-migrations.mjs # expect: 6 passed, 0 failed (after any schema change)
+node test-migrations.mjs # expect: 8 passed, 0 failed (after any schema change)
 ```
 
 DB baseline to restore after testing: **22 quotes · 39 families · 61 parts · 5 categories**.

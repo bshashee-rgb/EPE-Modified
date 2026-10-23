@@ -7,9 +7,10 @@ import QuoteDetail from './pages/QuoteDetail.jsx';
 import Parts from './pages/Parts.jsx';
 import Admin from './pages/Admin.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import Customers from './pages/Customers.jsx';
 import Login from './pages/Login.jsx';
 
-const PAGES = ['dashboard', 'catalog', 'configure', 'quote', 'parts', 'admin'];
+const PAGES = ['dashboard', 'catalog', 'configure', 'quote', 'parts', 'customers', 'admin'];
 // hash routes: #/dashboard (home), #/catalog, #/configure/:familyId, #/quote/:id, #/parts, #/admin
 function parseHash() {
   let h = (window.location.hash || '#/dashboard').slice(2);
@@ -95,6 +96,7 @@ export default function App() {
           <button className={is('dashboard') || is('quote') ? 'active' : ''} onClick={() => nav('dashboard')}>Dashboard</button>
           <button className={is('catalog') || is('configure') ? 'active' : ''} onClick={() => nav('catalog')}>Catalogue</button>
           <button className={is('parts') ? 'active' : ''} onClick={() => nav('parts')}>Parts & Spares</button>
+          <button className={is('customers') ? 'active' : ''} onClick={() => nav('customers')}>Customers</button>
           {effectiveRole === 'admin' && <button className={is('admin') ? 'active' : ''} onClick={() => nav('admin')}>Admin</button>}
         </nav>
         {legacy ? (
@@ -120,6 +122,7 @@ export default function App() {
           : <NotFound nav={nav} />)}
         {is('quote') && (validId(route.args[0]) ? <QuoteDetail quoteId={+route.args[0]} nav={nav} role={effectiveRole} /> : <NotFound nav={nav} />)}
         {is('parts') && <Parts nav={nav} />}
+        {is('customers') && <Customers nav={nav} />}
         {is('admin') && (effectiveRole === 'admin' ? <Admin nav={nav} /> : <NotFound nav={nav} />)}
         {!PAGES.includes(route.page) && <NotFound nav={nav} />}
       </main>

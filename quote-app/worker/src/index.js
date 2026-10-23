@@ -190,13 +190,36 @@ app.get('/api/parts', async (c) => {
 
 // ---------- Customers ----------
 app.get('/api/customers', async (c) => c.json((await DB(c).prepare('SELECT * FROM customers ORDER BY name').all()).results));
+app.get('/api/customers/:id', async (c) => {
+  const row = await DB(c).prepare('SELECT * FROM customers WHERE id=?').bind(+c.req.param('id')).first();
+  if (!row) return c.json({ error: 'customer not found' }, 404);
+  return c.json(row);
+});
 app.post('/api/customers', async (c) => {
   const body = await c.req.json().catch(() => ({}));
-  const { name, contact, email, phone, address, gstin } = body;
-  const r = await DB(c).prepare('INSERT INTO customers(name,contact,email,phone,address,gstin) VALUES (?,?,?,?,?,?)')
-    .bind(name, contact || null, email || null, phone || null, address || null, gstin || null).run();
+  const { name, contact, email, phone, address, gstin, place_of_supply_state } = body;
+  const sourceState = body.source_state || 'Telangana';
+  const code = await d.nextCustomerCode(DB(c));
+  const r = await DB(c).prepare(`INSERT INTO customers(name,contact,email,phone,address,gstin,code,source_state,place_of_supply_state)
+      VALUES (?,?,?,?,?,?,?,?,?)`)
+    .bind(name, contact || null, email || null, phone || null, address || null, gstin || null, code, sourceState, place_of_supply_state || null).run();
   const id = r.meta.last_row_id;
-  await d.audit(DB(c), actor(c), 'create', 'customer', id);
+  await d.audit(DB(c), actor(c), 'create', 'customer', id, { code });
+  return c.json(await DB(c).prepare('SELECT * FROM customers WHERE id=?').bind(id).first());
+});
+app.patch('/api/customers/:id', async (c) => {
+  const id = +c.req.param('id');
+  const existing = await DB(c).prepare('SELECT id FROM customers WHERE id=?').bind(id).first();
+  if (!existing) return c.json({ error: 'customer not found' }, 404);
+  const body = await c.req.json().catch(() => ({}));
+  const allowed = ['name', 'contact', 'email', 'phone', 'address', 'gstin', 'source_state', 'place_of_supply_state'];
+  const sets = [], vals = [];
+  for (const k of allowed) if (k in body) { sets.push(`${k}=?`); vals.push(body[k] || null); }
+  if (sets.length) {
+    vals.push(id);
+    await DB(c).prepare(`UPDATE customers SET ${sets.join(',')} WHERE id=?`).bind(...vals).run();
+    await d.audit(DB(c), actor(c), 'update', 'customer', id, body);
+  }
   return c.json(await DB(c).prepare('SELECT * FROM customers WHERE id=?').bind(id).first());
 });
 
@@ -945,6 +968,7 @@ app.get('/api/admin/summary', async (c) => {
     families: (await DBc.prepare('SELECT COUNT(*) n FROM families').first()).n,
     spares: (await DBc.prepare('SELECT COUNT(*) n FROM parts').first()).n,
     audit: (await DBc.prepare('SELECT COUNT(*) n FROM audit_log').first()).n,
+    customers: (await DBc.prepare('SELECT COUNT(*) n FROM customers').first()).n,
   });
 });
 

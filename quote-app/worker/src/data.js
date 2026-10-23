@@ -67,3 +67,18 @@ export async function nextQuoteNumber(DB) {
   for (const r of rows) { const m = r.number.match(/-(\d+)$/); if (m) max = Math.max(max, +m[1]); }
   return `Q-${year}-${String(max + 1).padStart(4, '0')}`;
 }
+
+export async function nextCustomerCode(DB) {
+  const rows = (await DB.prepare("SELECT code FROM customers WHERE code LIKE 'CUST-%'").all()).results;
+  let max = 0;
+  for (const r of rows) { const m = r.code.match(/-(\d+)$/); if (m) max = Math.max(max, +m[1]); }
+  return `CUST-${String(max + 1).padStart(4, '0')}`;
+}
+
+// GST type for a quote: compare the supplier's (EPE's) source state against the customer's
+// place-of-supply state. 'unknown' when either is blank -- callers fall back to the pre-existing
+// flat "GST" label rather than guessing.
+export function gstType(sourceState, placeOfSupplyState) {
+  if (!sourceState || !placeOfSupplyState) return 'unknown';
+  return sourceState === placeOfSupplyState ? 'intra' : 'inter';
+}

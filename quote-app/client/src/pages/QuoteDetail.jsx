@@ -6,6 +6,8 @@ import CopyCode from '../components/CopyCode.jsx';
 import CustomerHistoryPanel from '../components/CustomerHistoryPanel.jsx';
 import ClarificationsPanel from '../components/ClarificationsPanel.jsx';
 import AttachmentsPanel from '../components/AttachmentsPanel.jsx';
+import CustomerPicker from '../components/CustomerPicker.jsx';
+import { INDIAN_STATES, gstType } from '../data/indianStates.js';
 
 export default function QuoteDetail({ quoteId, nav, role }) {
   const [data, setData] = useState(null);
@@ -23,6 +25,7 @@ export default function QuoteDetail({ quoteId, nav, role }) {
   const [history, setHistory] = useState(null);
   const [fx, setFx] = useState(null);             // live rate info shown next to the currency picker
   const [showCustom, setShowCustom] = useState(false);
+  const [gstPrompt, setGstPrompt] = useState(null); // {sourceState, placeState} while asking for GST details before Send
   const loadSeq = React.useRef(0);
 
   // UI-2: sequence guard so an out-of-order (stale) reload can't overwrite newer state.
@@ -40,6 +43,7 @@ export default function QuoteDetail({ quoteId, nav, role }) {
   if (!data) return <p className="muted">Loading quote…</p>;
 
   const { quote, lines } = data;
+  const selectedCustomer = customers.find((c) => c.id === quote.customer_id) || null;
   const mny = (n) => fmtMoney(n, quote.currency, quote.fx_rate);
   // Full live currency list once /api/fx-rates resolves (~166 codes); the small
   // fallback covers the brief window before it does, plus the quote's own currency.
@@ -102,11 +106,11 @@ export default function QuoteDetail({ quoteId, nav, role }) {
           </span>
         )}
         <label className="muted">Customer</label>
-        <select value={quote.customer_id || ''} disabled={finalized} onMouseDown={(e) => { if (!tryEdit()) e.preventDefault(); }} onChange={(e) => editPatch({ customer_id: +e.target.value || null })}>
-          <option value="">— select customer —</option>
-          {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <button className="btn secondary small" onClick={() => { if (tryEdit()) setShowNewCust(!showNewCust); }}>+ Customer</button>
+        <span onMouseDown={(e) => { if (finalized && !tryEdit()) e.preventDefault(); }}>
+          <CustomerPicker customers={customers} value={quote.customer_id} disabled={finalized}
+            onChange={(id) => editPatch({ customer_id: id })}
+            onNewCustomer={() => { if (tryEdit()) setShowNewCust(true); }} />
+        </span>
         <label className="muted">Date</label>
         <input type="date" value={quote.quote_date || ''} readOnly={finalized}
           onMouseDown={(e) => { if (!tryEdit()) e.preventDefault(); }} onChange={(e) => editPatch({ quote_date: e.target.value })} />
@@ -124,8 +128,46 @@ export default function QuoteDetail({ quoteId, nav, role }) {
       <StatusPipeline status={quote.status} onChange={(s) => {
         // BUG-4: moving a finalized quote back to Draft reopens editing — confirm it.
         if (finalized && s === 'Draft' && !window.confirm(`Re-open ${quote.number} Rev ${quote.revision} as an editable Draft? It is currently ${quote.status}.`)) return;
+        // GST details check: a customer with no Place of Supply set yet gets a one-time prompt
+        // before the quote goes out as a Sent offer — soft gate, "Send anyway" always available.
+        if (s === 'Sent' && selectedCustomer && !selectedCustomer.place_of_supply_state) {
+          setGstPrompt({ sourceState: selectedCustomer.source_state || 'Telangana', placeState: '' });
+          return;
+        }
         patch({ status: s });
       }} />
+      {gstPrompt && (
+        <div className="modal-overlay no-print" onClick={() => setGstPrompt(null)}>
+          <div className="modal-card" role="dialog" aria-modal="true" aria-label="GST details" onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0 }}>GST details for {selectedCustomer?.name} aren't set yet</h3>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Source and Place of Supply decide whether this quotation shows CGST+SGST or IGST.
+            </p>
+            <div className="field-grid">
+              <label>Source of Supply (EPE)
+                <select value={gstPrompt.sourceState} onChange={(e) => setGstPrompt({ ...gstPrompt, sourceState: e.target.value })}>
+                  {INDIAN_STATES.map((st) => <option key={st} value={st}>{st}</option>)}
+                </select>
+              </label>
+              <label>Place of Supply ({selectedCustomer?.name})
+                <select value={gstPrompt.placeState} onChange={(e) => setGstPrompt({ ...gstPrompt, placeState: e.target.value })}>
+                  <option value="">— choose a state —</option>
+                  {INDIAN_STATES.map((st) => <option key={st} value={st}>{st}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="modal-actions">
+              <button className="btn secondary" onClick={() => { setGstPrompt(null); patch({ status: 'Sent' }); }}>Send anyway</button>
+              <button className="btn" disabled={!gstPrompt.placeState} onClick={async () => {
+                await api.patch('/api/customers/' + selectedCustomer.id, { source_state: gstPrompt.sourceState, place_of_supply_state: gstPrompt.placeState });
+                await api.get('/api/customers').then(setCustomers);
+                setGstPrompt(null);
+                patch({ status: 'Sent' });
+              }}>Save &amp; Send</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showNewCust && !finalized && (
         <div className="toolrow no-print">
           <input placeholder="Customer name" value={custName} onChange={(e) => setCustName(e.target.value)} />
@@ -346,7 +388,17 @@ export default function QuoteDetail({ quoteId, nav, role }) {
             <tbody>
               <tr><td>Subtotal</td><td>{mny(subtotal)}</td></tr>
               {quote.discount_pct > 0 && <tr><td>Quote discount ({quote.discount_pct}%)</td><td>− {mny(discount)}</td></tr>}
-              <tr><td>GST ({quote.tax_pct}%)</td><td>{mny(tax)}</td></tr>
+              {(() => {
+                const t = gstType(selectedCustomer?.source_state, selectedCustomer?.place_of_supply_state);
+                if (t === 'intra') return (
+                  <>
+                    <tr><td>CGST ({(quote.tax_pct / 2).toFixed(2)}%)</td><td>{mny(tax / 2)}</td></tr>
+                    <tr><td>SGST ({(quote.tax_pct / 2).toFixed(2)}%)</td><td>{mny(tax / 2)}</td></tr>
+                  </>
+                );
+                if (t === 'inter') return <tr><td>IGST ({quote.tax_pct}%)</td><td>{mny(tax)}</td></tr>;
+                return <tr><td>GST ({quote.tax_pct}%)</td><td>{mny(tax)}</td></tr>;
+              })()}
               <tr className="total"><td>Total{hasPoa ? ' (excl. PoA lines)' : ''}</td><td>{mny(total)}</td></tr>
             </tbody>
           </table>
