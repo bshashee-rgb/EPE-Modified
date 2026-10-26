@@ -168,17 +168,37 @@ export default function QuoteDetail({ quoteId, nav, role }) {
           </div>
         </div>
       )}
-      {showNewCust && !finalized && (
-        <div className="toolrow no-print">
-          <input placeholder="Customer name" value={custName} onChange={(e) => setCustName(e.target.value)} />
-          <button className="btn small" onClick={async () => {
-            if (!custName.trim()) return;
-            const c = await api.post('/api/customers', { name: custName.trim() });
-            setCustomers([...customers, c]); setCustName(''); setShowNewCust(false);
-            patch({ customer_id: c.id });
-          }}>Save customer</button>
-        </div>
-      )}
+      {showNewCust && !finalized && (() => {
+        const closeNewCust = () => { setShowNewCust(false); setCustName(''); };
+        const addCustomer = async () => {
+          const name = custName.trim();
+          if (!name) return;
+          const c = await api.post('/api/customers', { name });
+          setCustomers([...customers, c]); setCustName(''); setShowNewCust(false);
+          patch({ customer_id: c.id });
+        };
+        return (
+          <div className="modal-overlay no-print" onClick={closeNewCust}>
+            <div className="modal-card" role="dialog" aria-modal="true" aria-label="New customer" onClick={(e) => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0 }}>New customer</h3>
+              <p className="muted" style={{ marginTop: 0 }}>
+                Quick add — just the name. Add phone/email/GSTIN/billing details any time from the Customers page.
+              </p>
+              <div className="field-grid">
+                <label>Customer / company name *
+                  <input autoFocus placeholder="e.g. Bharat Heavy Electricals Ltd" value={custName}
+                    onChange={(e) => setCustName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomer(); } }} />
+                </label>
+              </div>
+              <div className="modal-actions">
+                <button className="btn secondary" onClick={closeNewCust}>Cancel</button>
+                <button className="btn" disabled={!custName.trim()} onClick={addCustomer}>Add &amp; select</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       {finalized && (
         <div className="notice no-print" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
           🔒 This quotation is <b>{quote.status}</b> — its contents are locked. To change it, save a new revision or create a new quote.
